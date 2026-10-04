@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Select Sky brand sheet</title>
+<meta name="description" content="Brand sheet for Select Sky, an unofficial flight wall for the Supabase SELECT badge.">
+<link rel="icon" href="logo/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Mona+Sans:wght@200..900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-deep: #080C08;
+  --bg: #101410;
+  --panel: #181818;
+  --raised: #212021;
+  --line: #313031;
+  --text: #EFEFEF;
+  --text-2: #BDBEBD;
+  --text-3: #8C8B8C;
+  --green: #3ECF8E;
+  --green-hi: #85E0BA;
+  --green-mid: #1D724C;
+  --green-dim: #006239;
+  --green-tint: #002918;
+  --green-ink: #08271B;
+  --amber: #F2AF48;
+  --amber-tint: #341C00;
+  --red: #F16A50;
+  --red-tint: #3B1813;
+  --sky: #52A9FF;
+  --violet: #9E8CFC;
+  --sans: "Mona Sans", "Inter", system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html { background: var(--bg-deep); scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg-deep);
+  color: var(--text);
+  font: 400 17px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+img { display: block; max-width: 100%; height: auto; }
+a { color: inherit; text-decoration: none; }
+p { margin: 0; }
+ul { margin: 0; padding: 0; list-style: none; }
+h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.03em; line-height: 1.04; text-wrap: balance; }
+
+.wrap { width: min(1360px, calc(100% - 48px)); margin-inline: auto; }
+
+/* labels and pills */
+.lbl {
+  font: 500 12px/1.5 var(--mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.lbl.g { color: var(--green); }
+.lbl.t2 { color: var(--text-2); }
+.code { font-family: var(--mono); font-weight: 500; }
+.pill {
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 7px 14px; border-radius: 999px;
+  font: 500 12px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase;
+  white-space: nowrap;
+}
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.pill.live { background: var(--green-tint); color: var(--green-hi); }
+.pill.live::before { background: var(--green); }
+.pill.demo { background: var(--amber-tint); color: var(--amber); }
+.pill.sim { background: var(--panel); color: var(--text-2); white-space: normal; line-height: 1.5; }
+.pill.sim::before { background: var(--text-3); }
+
+/* top bar */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 28px 0; }
+.top nav { display: flex; gap: 28px; flex-wrap: wrap; }
+.top nav a { color: var(--text-3); transition: color .15s; }
+.top nav a:hover { color: var(--green); }
+
+/* hero header */
+.hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 80px; align-items: center; padding: 56px 0 24px; }
+.hero > * { min-width: 0; }
+.hero .lockup { width: 100%; max-width: 640px; margin-left: -55px; }
+.hero h1 { font-size: 40px; letter-spacing: -0.025em; line-height: 1.12; font-weight: 500; color: var(--text); max-width: 16ch; }
+.hero .meta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+.hero .sub { margin-top: 20px; color: var(--text-2); max-width: 44ch; }
+
+/* sections */
+section { padding-top: 128px; }
+.sec-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 80px; align-items: end; margin-bottom: 56px; }
+.sec-head h2 { font-size: 64px; margin-top: 16px; max-width: 18ch; }
+.sec-head .lede { color: var(--text-2); max-width: 52ch; padding-bottom: 6px; }
+.sub-head { display: flex; justify-content: space-between; align-items: baseline; margin: 64px 0 20px; }
+
+/* cards */
+.card { background: var(--bg); border-radius: 22px; padding: 32px; }
+.card.light { background: var(--text); color: var(--bg); }
+.card.light .lbl { color: var(--bg); }
+.cap { margin-top: 14px; display: flex; justify-content: space-between; gap: 16px; }
+
+/* mark */
+.mark-grid { display: grid; grid-template-columns: 420px minmax(0, 1fr); gap: 16px; }
+.mark-main { background: var(--bg); border-radius: 22px; display: grid; place-items: center; padding: 48px; }
+.mark-main img { width: 100%; max-width: 324px; }
+.mark-side { display: grid; grid-template-rows: auto auto; gap: 16px; }
+.glyphs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.glyph-card { background: var(--bg); border-radius: 22px; padding: 28px; display: flex; flex-direction: column; justify-content: space-between; min-height: 244px; }
+.glyph-card.light { background: var(--text); color: var(--bg); }
+.glyph-card.light .lbl { color: var(--bg); }
+.glyph-card svg, .glyph-card .gimg { width: 112px; height: 112px; }
+.sizes { background: var(--bg); border-radius: 22px; padding: 28px 32px; }
+.sizes .row { display: flex; align-items: flex-end; gap: 48px; margin-top: 28px; flex-wrap: wrap; }
+.sizes figure { margin: 0; display: flex; flex-direction: column; gap: 14px; }
+.sizes figure img { image-rendering: auto; }
+.lockups { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+.lockup-card { background: var(--bg); border-radius: 22px; padding: 28px; height: 340px; display: flex; flex-direction: column; justify-content: space-between; }
+.lockup-card.light { background: var(--text); }
+.lockup-card.light .lbl { color: var(--bg); }
+.lockup-card .stage { flex: 1; position: relative; min-height: 0; margin: 8px 0; }
+.lockup-card .stage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.rules { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+.rules .card { padding: 32px; }
+.rules h3 { font-size: 22px; letter-spacing: -0.02em; margin: 14px 0 18px; font-weight: 600; }
+.rules li { display: grid; grid-template-columns: 22px 1fr; gap: 6px; color: var(--text-2); font-size: 16px; line-height: 1.5; padding: 5px 0; }
+.rules li b { font: 500 14px/1.6 var(--mono); }
+.rules .yes li b { color: var(--green); }
+.rules .no li b { color: var(--red); }
+.spec { width: 100%; border-collapse: collapse; font-size: 16px; margin-top: 12px; }
+.spec td { padding: 9px 0; color: var(--text-2); vertical-align: baseline; }
+.spec td:first-child { color: var(--text-3); font: 500 12px/1.5 var(--mono); letter-spacing: .14em; text-transform: uppercase; width: 46%; }
+.spec td:last-child { text-align: right; color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+/* color */
+.group-label { display: flex; justify-content: space-between; align-items: baseline; margin: 0 0 16px; }
+.swatches { display: grid; gap: 16px; }
+.swatches.c6 { grid-template-columns: repeat(6, 1fr); }
+.swatches.c3 { grid-template-columns: repeat(3, 1fr); }
+.swatches.c4 { grid-template-columns: repeat(4, 1fr); }
+.sw { background: var(--panel); border-radius: 18px; padding: 14px 14px 20px; display: flex; flex-direction: column; gap: 14px; }
+.sw .chip { height: 108px; border-radius: 10px; background: var(--c); }
+.sw .name { font: 500 12px/1.4 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text-2); padding: 0 6px; }
+.sw .hex { font: 500 26px/1 var(--sans); letter-spacing: -0.01em; padding: 0 6px; font-variant-numeric: tabular-nums; }
+.sw .use { color: var(--text-3); font-size: 14px; line-height: 1.45; padding: 0 6px; }
+.sw .ratio { font: 500 11px/1.4 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--green); padding: 0 6px; margin-top: -4px; }
+.sw.big .chip { height: 164px; }
+.color-split { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 8fr); gap: 56px; margin-top: 64px; }
+.layers { background: var(--bg-deep); border-radius: 26px; padding: 22px 22px 22px; }
+.layers .tag { display: flex; justify-content: space-between; margin-bottom: 14px; font: 500 12px/1.4 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text-2); }
+.layers .tag span:last-child { color: var(--text-3); }
+.layers .l2 { background: var(--bg); border-radius: 20px; padding: 20px; }
+.layers .l3 { background: var(--panel); border-radius: 16px; padding: 20px; }
+.layers .l4 { background: var(--raised); border-radius: 12px; padding: 20px; }
+.layers .l5 { background: var(--line); height: 16px; border-radius: 8px; }
+.layers > .tag { padding: 0 6px; margin-bottom: 18px; }
+.surf-list { display: flex; flex-direction: column; justify-content: center; }
+.surf-list li { display: grid; grid-template-columns: 120px 110px 1fr; gap: 20px; align-items: baseline; padding: 15px 0; color: var(--text-2); font-size: 16px; }
+.surf-list li .n { font: 500 12px/1.4 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
+.surf-list li .h { font: 500 20px/1 var(--sans); color: var(--text); font-variant-numeric: tabular-nums; }
+.alt { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.ramp { height: 96px; border-radius: 18px; background: linear-gradient(90deg,
+  #FF8C28 0%, #FACD46 6.667%, #3ECF8E 20%, #46CDEB 44.444%, #52A9FF 68.889%, #9E8CFC 93.333%, #9E8CFC 100%); }
+.stops { display: grid; grid-template-columns: repeat(7, 1fr); gap: 16px; }
+.stop { background: var(--panel); border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.stop svg { width: 56px; height: 56px; color: var(--c); }
+.stop .hex { font: 500 22px/1 var(--sans); font-variant-numeric: tabular-nums; }
+.stop .k { font: 500 12px/1.4 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
+
+/* type */
+.type-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; }
+.spec-card { background: var(--bg); border-radius: 22px; padding: 40px; display: flex; flex-direction: column; gap: 36px; }
+.spec-card .face { display: flex; justify-content: space-between; align-items: baseline; }
+.big-name { font-size: 132px; font-weight: 600; letter-spacing: -0.04em; line-height: 0.98; }
+.alphabet { color: var(--text-2); font-size: 26px; line-height: 1.4; letter-spacing: -0.005em; font-weight: 400; word-break: break-word; }
+.weights { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.weights > div { background: var(--panel); border-radius: 16px; padding: 18px 20px; }
+.weights .s { font-size: 40px; line-height: 1.1; letter-spacing: -0.02em; margin-top: 10px; }
+.nums { display: flex; gap: 40px; flex-wrap: wrap; align-items: baseline; }
+.nums div { font-size: 56px; font-weight: 500; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1; }
+.nums small { font: 500 13px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); margin-left: 8px; letter-spacing: .14em; }
+.tag-big { font: 500 44px/1.1 var(--mono); color: var(--green); letter-spacing: -0.02em; }
+.sql-cap { font: 500 20px/1.4 var(--mono); color: var(--text-2); }
+.lbl-demo { display: flex; flex-direction: column; gap: 14px; }
+.lbl-demo .lbl { font-size: 14px; }
+.lbl-demo .row { display: flex; gap: 16px; align-items: baseline; justify-content: space-between; }
+.where { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+.where .card h3 { font-size: 22px; letter-spacing: -0.02em; margin: 14px 0 10px; }
+.where .card p { color: var(--text-2); font-size: 16px; line-height: 1.55; }
+
+/* screens */
+.screens { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 80px 80px; }
+.screens figure, .m figure, .soc figure, .rd figure { margin: 0; }
+.screens img, .gif img { width: 100%; background: var(--bg-deep); }
+.screens .cap, .gif .cap { margin-top: 16px; }
+.state { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 80px; align-items: center; margin-top: 80px; }
+.state .txt { display: flex; flex-direction: column; gap: 22px; }
+.state h3 { font-size: 40px; line-height: 1.1; max-width: 16ch; }
+.state p { color: var(--text-2); max-width: 46ch; }
+.chips { display: flex; gap: 12px; flex-wrap: wrap; }
+
+/* badge renders */
+.rd { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.12fr); gap: 16px 24px; align-items: start; }
+.mat { background: var(--bg); border-radius: 22px; padding: 14px; }
+.mat img { border-radius: 12px; width: 100%; background: var(--bg-deep); }
+.rd .col3 { display: flex; flex-direction: column; gap: 16px; }
+
+.rd .notes { background: var(--bg); border-radius: 22px; padding: 28px 32px; }
+.rd .notes p { color: var(--text-2); font-size: 16px; line-height: 1.55; margin-top: 12px; }
+
+/* social */
+.soc { display: grid; gap: 40px 16px; }
+.soc .r1 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 40px; align-items: start; }
+.soc .r2 { display: grid; grid-template-columns: 1.851fr 1fr; gap: 16px 40px; align-items: start; }
+
+
+/* motion */
+.gifs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 80px; }
+.gif img { border-radius: 4px; }
+.gif-note { margin-top: 56px; display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 56px; align-items: center; }
+.gif-note p { color: var(--text-2); max-width: 60ch; }
+.gif-note p + p { margin-top: 12px; }
+
+/* copy bank */
+.copy-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.copy { background: var(--bg); border-radius: 22px; padding: 32px; }
+.copy.wide { grid-column: 1 / -1; }
+.copy .head { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.copy .body { font-size: 20px; line-height: 1.5; letter-spacing: -0.005em; color: var(--text); }
+.copy .body.sm { font-size: 17px; color: var(--text); }
+.copy ul.b li { padding: 10px 0 10px 28px; position: relative; font-size: 18px; line-height: 1.45; }
+.copy ul.b li::before { content: ""; position: absolute; left: 0; top: 20px; width: 10px; height: 10px; border-radius: 3px; background: var(--green); }
+.posts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.post { background: var(--panel); border-radius: 18px; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px; }
+.post p { white-space: pre-line; font-size: 17px; line-height: 1.5; }
+.post p .tl { font: 500 19px/1.4 var(--mono); color: var(--green); }
+.ic { font: 500 .92em var(--mono); color: var(--green-hi); }
+.topics { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.topic { background: var(--panel); border-radius: 999px; padding: 8px 14px; font: 500 14px/1 var(--mono); color: var(--green-hi); }
+.alts li { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; padding: 14px 0; color: var(--text); font-size: 17px; line-height: 1.5; }
+.alts li .lbl { padding-top: 3px; }
+.alts li + li { }
+
+/* footer */
+footer { margin-top: 160px; padding: 0 0 72px; }
+footer .row { display: flex; justify-content: space-between; gap: 40px; flex-wrap: wrap; }
+footer .lbl { max-width: 70ch; line-height: 1.9; }
+
+@media (max-width: 1180px) {
+  .hero, .sec-head, .mark-grid, .type-grid, .color-split, .state, .gif-note { grid-template-columns: minmax(0, 1fr); gap: 40px; }
+  .hero .lockup { margin-left: -40px; }
+  .sec-head h2 { font-size: 48px; }
+  .swatches.c6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .swatches.c4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stops { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .glyphs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lockups, .rules, .where, .posts { grid-template-columns: minmax(0, 1fr); }
+  .screens, .gifs { grid-template-columns: minmax(0, 1fr); gap: 48px; }
+  .rd { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rd .col3 { grid-column: 1 / -1; }
+  .copy-grid { grid-template-columns: minmax(0, 1fr); }
+  .soc .r1, .soc .r2 { grid-template-columns: minmax(0, 1fr); }
+  .big-name { font-size: 88px; }
+  .alts li { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .surf-list li { grid-template-columns: 22px 120px 96px 1fr; }
+}
+@media (max-width: 640px) {
+  section { padding-top: 96px; }
+  .hero .lockup { margin-left: -24px; width: calc(100% + 24px); }
+  .hero h1 { font-size: 30px; }
+  .sec-head h2 { font-size: 38px; }
+  .swatches.c6, .swatches.c3, .swatches.c4, .rd { grid-template-columns: minmax(0, 1fr); }
+  .stops { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .big-name { font-size: 56px; }
+  .tag-big { font-size: 30px; }
+  .nums div { font-size: 36px; }
+  .weights { grid-template-columns: minmax(0, 1fr); }
+  .surf-list li { grid-template-columns: 22px 1fr; }
+  .surf-list li .h, .surf-list li span:last-child { grid-column: 2; }
+  .top nav { gap: 16px; }
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="glyph" viewBox="152 152 720 720">
+    <path d="M830.5 193.5 L792.3 314.4 L668.2 438.5 L735.0 798.1 L684.1 849.0 L540.9 565.8 L432.7 661.3 L442.3 798.1 L410.5 829.9 L327.7 696.3 L194.1 613.5 L225.9 581.7 L362.7 591.3 L458.2 483.1 L175.0 339.9 L225.9 289.0 L585.5 355.8 L709.6 231.7 Z" fill="currentColor" stroke="currentColor" stroke-width="12" stroke-linejoin="round"/>
+  </symbol>
+</svg>
+
+<div class="wrap">
+  <div class="top">
+    <span class="lbl g">Brand sheet</span>
+    <nav class="lbl">
+      <a href="#mark">01 Mark</a>
+      <a href="#color">02 Color</a>
+      <a href="#type">03 Type</a>
+      <a href="#screens">04 Screens</a>
+      <a href="#badge">05 Badge</a>
+      <a href="#social">06 Social</a>
+      <a href="#motion">07 Motion</a>
+      <a href="#copy">08 Copy</a>
+    </nav>
+  </div>
+
+  <header class="hero">
+    <img class="lockup" src="logo/lockup-tagline-dark.png" width="960" height="368" alt="Select Sky logo with the tagline select * from sky;">
+    <div>
+      <h1>A flight wall for the Supabase SELECT badge.</h1>
+      <p class="sub">An open-source MicroPython app that shows the aircraft around you, or one callsign anywhere, across six views.</p>
+      <div class="meta">
+        <span class="pill live">Live</span>
+        <span class="pill demo">Demo</span>
+        <span class="pill sim">Simulator-tested, not run on a physical badge</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 01 MARK -->
+  <section id="mark">
+    <div class="sec-head">
+      <div>
+        <span class="lbl g">01 · Mark</span>
+        <h2>A green airliner on a dark tile.</h2>
+      </div>
+      <p class="lede">The glyph points up-right at 45 degrees. The tile is green ink, so on a dark background the glyph carries the mark. Use the PNG lockups in documents; the SVG text needs web fonts.</p>
+    </div>
+
+    <div class="mark-grid">
+      <div class="mark-main">
+        <img src="logo/icon-512.png" width="512" height="512" alt="Select Sky icon: a green airliner on a dark green rounded tile">
+      </div>
+      <div class="mark-side">
+        <div class="glyphs">
+          <div class="glyph-card"><img class="gimg" src="logo/glyph.svg" width="112" height="112" alt="Green glyph"><div><div class="lbl t2">Glyph · green</div><div class="lbl">glyph.svg</div></div></div>
+          <div class="glyph-card"><svg style="color:#EFEFEF" role="img" aria-label="One-color glyph on dark"><use href="#glyph" width="100%" height="100%"/></svg><div><div class="lbl t2">Mono · on dark</div><div class="lbl">glyph-mono.svg</div></div></div>
+          <div class="glyph-card light"><svg style="color:#101410" role="img" aria-label="One-color glyph on light"><use href="#glyph" width="100%" height="100%"/></svg><div><div class="lbl">Mono · on light</div><div class="lbl">glyph-mono.svg</div></div></div>
+          <div class="glyph-card"><img class="gimg" src="logo/glyph-small.svg" width="112" height="112" alt="Simplified glyph for small sizes"><div><div class="lbl t2">Small sizes</div><div class="lbl">glyph-small.svg</div></div></div>
+        </div>
+        <div class="sizes">
+          <div class="lbl t2">Sizes · actual pixels</div>
+          <div class="row">
+            <figure><img src="logo/icon-512.png" width="128" height="128" alt="Icon at 128 px"><span class="lbl">128</span></figure>
+            <figure><img src="logo/icon-64.png" width="64" height="64" alt="Icon at 64 px"><span class="lbl">64</span></figure>
+            <figure><img src="logo/icon-32.png" width="32" height="32" alt="Icon at 32 px"><span class="lbl">32</span></figure>
+            <figure><img src="logo/icon-small-24.png" width="24" height="24" alt="Small icon at 24 px"><span class="lbl">24</span></figure>
+            <figure><img src="logo/icon-small-16.png" width="16" height="16" alt="Small icon at 16 px"><span class="lbl">16 small</span></figure>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="lockups">
+      <div class="lockup-card"><div class="lbl t2">Horizontal · dark</div><div class="stage"><img src="logo/lockup-horizontal-dark.png" width="960" height="344" alt="Select Sky horizontal lockup on dark"></div><div class="lbl">lockup-horizontal-dark.png</div></div>
+      <div class="lockup-card"><div class="lbl t2">Tagline · dark</div><div class="stage"><img src="logo/lockup-tagline-dark.png" width="960" height="368" alt="Select Sky lockup with tagline on dark"></div><div class="lbl">lockup-tagline-dark.png</div></div>
+      <div class="lockup-card"><div class="lbl t2">Stacked · dark</div><div class="stage"><img src="logo/lockup-stacked-dark.png" width="960" height="786" alt="Select Sky stacked lockup on dark"></div><div class="lbl">lockup-stacked-dark.png</div></div>
+      <div class="lockup-card light"><div class="lbl">Horizontal · light</div><div class="stage"><img src="logo/lockup-horizontal-light.png" width="960" height="344" alt="Select Sky horizontal lockup on light"></div><div class="lbl">lockup-horizontal-light.png</div></div>
+      <div class="lockup-card light"><div class="lbl">Tagline · light</div><div class="stage"><img src="logo/lockup-tagline-light.png" width="960" height="368" alt="Select Sky lockup with tagline on light"></div><div class="lbl">lockup-tagline-light.png</div></div>
+      <div class="lockup-card light"><div class="lbl">Stacked · light</div><div class="stage"><img src="logo/lockup-stacked-light.png" width="960" height="786" alt="Select Sky stacked lockup on light"></div><div class="lbl">lockup-stacked-light.png</div></div>
+    </div>
+
+    <div class="rules">
+      <div class="card">
+        <span class="lbl g">Clear space and minimum size</span>
+        <h3>Keep half a tile of room.</h3>
+        <table class="spec">
+          <tr><td>Clear space</td><td>50% of tile height</td></tr>
+          <tr><td>Icon alone</td><td>25% of tile edge</td></tr>
+          <tr><td>Icon, min</td><td>24 px (icon-small below)</td></tr>
+          <tr><td>Horizontal, min</td><td>112 px wide</td></tr>
+          <tr><td>Stacked, min</td><td>64 px wide</td></tr>
+          <tr><td>Tagline, min</td><td>200 px wide</td></tr>
+        </table>
+      </div>
+      <div class="card yes rules-list">
+        <span class="lbl g">Do</span>
+        <h3>Keep the mark simple.</h3>
+        <ul class="yes">
+          <li><b>+</b><span>Use the files as exported. The PNG lockups include clear space.</span></li>
+          <li><b>+</b><span>Put the glyph on dark and the tile on light or mid backgrounds.</span></li>
+          <li><b>+</b><span>Use #006239 for the tagline on light backgrounds (6.5:1).</span></li>
+          <li><b>+</b><span>Tint the glyph by altitude when the glyph stands alone.</span></li>
+        </ul>
+      </div>
+      <div class="card no rules-list">
+        <span class="lbl" style="color:var(--red)">Do not</span>
+        <h3>Leave the mark alone.</h3>
+        <ul class="no">
+          <li><b>x</b><span>Stretch, squash, rotate, outline or redraw it.</span></li>
+          <li><b>x</b><span>Add the Supabase bolt or any partner mark, in or next to the logo.</span></li>
+          <li><b>x</b><span>Use colors outside the palette, shadows or glows.</span></li>
+          <li><b>x</b><span>Place it on busy photos or screenshots.</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 COLOR -->
+  <section id="color">
+    <div class="sec-head">
+      <div>
+        <span class="lbl g">02 · Color</span>
+        <h2>Dark surfaces and one green.</h2>
+      </div>
+      <p class="lede">Values come from select_sky/skytheme.py. Contrast ratios are computed with the WCAG formula, against #080C08 unless noted.</p>
+    </div>
+
+    <div class="group-label"><span class="lbl t2">Primary</span><span class="lbl">Green carries the brand</span></div>
+    <div class="swatches c6">
+      <div class="sw"><div class="chip" style="--c:#3ECF8E"></div><div class="name">Green</div><div class="hex">#3ECF8E</div><div class="use">Glyph, tagline, LIVE dot, rising vertical speed.</div><div class="ratio">9.9:1</div></div>
+      <div class="sw"><div class="chip" style="--c:#85E0BA"></div><div class="name">Green hi</div><div class="hex">#85E0BA</div><div class="use">LIVE chip text, selected route glyph.</div><div class="ratio">12.5:1</div></div>
+      <div class="sw"><div class="chip" style="--c:#1D724C"></div><div class="name">Green mid</div><div class="hex">#1D724C</div><div class="use">Progress bars, quiet fills.</div></div>
+      <div class="sw"><div class="chip" style="--c:#006239"></div><div class="name">Green dim</div><div class="hex">#006239</div><div class="use">Tagline on light backgrounds.</div><div class="ratio">6.5:1 on #EFEFEF</div></div>
+      <div class="sw"><div class="chip" style="--c:#002918"></div><div class="name">Green tint</div><div class="hex">#002918</div><div class="use">Chip and pill backgrounds.</div></div>
+      <div class="sw"><div class="chip" style="--c:#08271B"></div><div class="name">Green ink</div><div class="hex">#08271B</div><div class="use">The icon tile.</div></div>
+    </div>
+
+    <div class="color-split">
+      <div>
+        <div class="group-label"><span class="lbl t2">Surfaces</span><span class="lbl">Darkest first</span></div>
+        <div class="layers">
+          <div class="tag"><span>BG deep</span><span>#080C08</span></div>
+          <div class="l2">
+            <div class="tag"><span>BG</span><span>#101410</span></div>
+            <div class="l3">
+              <div class="tag"><span>Panel</span><span>#181818</span></div>
+              <div class="l4">
+                <div class="tag"><span>Raised</span><span>#212021</span></div>
+                <div class="tag" style="margin:0 0 10px"><span>Line</span><span>#313031</span></div>
+                <div class="l5"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <ul class="surf-list">
+        <li><span class="n">BG deep</span><span class="h">#080C08</span><span>Deepest background: sheets, social cards, the screen's outer edge.</span></li>
+        <li><span class="n">BG</span><span class="h">#101410</span><span>Main screen and card surface.</span></li>
+        <li><span class="n">Panel</span><span class="h">#181818</span><span>Stat tiles and grouped rows.</span></li>
+        <li><span class="n">Raised</span><span class="h">#212021</span><span>Key caps and raised rows.</span></li>
+        <li><span class="n">Line</span><span class="h">#313031</span><span>Dividers and rules inside screens.</span></li>
+      </ul>
+    </div>
+
+    <div class="color-split" style="grid-template-columns:minmax(0,3fr) minmax(0,4fr)">
+      <div>
+        <div class="group-label"><span class="lbl t2">Text</span><span class="lbl">On #080C08</span></div>
+        <div class="swatches c3">
+          <div class="sw"><div class="chip" style="--c:#EFEFEF"></div><div class="name">Text</div><div class="hex">#EFEFEF</div><div class="use">Headlines, numbers, callsigns.</div><div class="ratio">17.1:1</div></div>
+          <div class="sw"><div class="chip" style="--c:#BDBEBD"></div><div class="name">Text 2</div><div class="hex">#BDBEBD</div><div class="use">Body copy, secondary values.</div><div class="ratio">10.6:1</div></div>
+          <div class="sw"><div class="chip" style="--c:#8C8B8C"></div><div class="name">Text 3</div><div class="hex">#8C8B8C</div><div class="use">Mono labels and captions.</div><div class="ratio">5.8:1</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="group-label"><span class="lbl t2">Status and accent</span><span class="lbl">Use for state, not decoration</span></div>
+        <div class="swatches c4">
+          <div class="sw"><div class="chip" style="--c:#F2AF48"></div><div class="name">Amber</div><div class="hex">#F2AF48</div><div class="use">DEMO chip, descents, caution.</div><div class="ratio">10.3:1</div></div>
+          <div class="sw"><div class="chip" style="--c:#F16A50"></div><div class="name">Red</div><div class="hex">#F16A50</div><div class="use">Emergency squawk and alerts only.</div><div class="ratio">6.5:1</div></div>
+          <div class="sw"><div class="chip" style="--c:#52A9FF"></div><div class="name">Sky</div><div class="hex">#52A9FF</div><div class="use">Cool accent and chart series.</div><div class="ratio">7.9:1</div></div>
+          <div class="sw"><div class="chip" style="--c:#9E8CFC"></div><div class="name">Violet</div><div class="hex">#9E8CFC</div><div class="use">Military tag, highest altitudes.</div><div class="ratio">7.1:1</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="group-label" style="margin-top:64px"><span class="lbl t2">Altitude ramp</span><span class="lbl">Warm near the ground, cool at cruise</span></div>
+    <div class="alt">
+      <div class="ramp" role="img" aria-label="Altitude ramp from orange through yellow, green, cyan and blue to violet"></div>
+      <div class="stops">
+        <div class="stop" style="--c:#FF8C28"><svg><use href="#glyph" width="100%" height="100%"/></svg><div class="hex">#FF8C28</div><div class="k">0 kft · orange</div></div>
+        <div class="stop" style="--c:#FACD46"><svg><use href="#glyph" width="100%" height="100%"/></svg><div class="hex">#FACD46</div><div class="k">3 kft · yellow</div></div>
+        <div class="stop" style="--c:#3ECF8E"><svg><use href="#glyph" width="100%" height="100%"/></svg><div class="hex">#3ECF8E</div><div class="k">9 kft · green</div></div>
+        <div class="stop" style="--c:#46CDEB"><svg><use href="#glyph" width="100%" height="100%"/></svg><div class="hex">#46CDEB</div><div class="k">20 kft · cyan</div></div>
+        <div class="stop" style="--c:#52A9FF"><svg><use href="#glyph" width="100%" height="100%"/></svg><div class="hex">#52A9FF</div><div class="k">31 kft · blue</div></div>
+        <div class="stop" style="--c:#9E8CFC"><svg><use href="#glyph" width="100%" height="100%"/></svg><div class="hex">#9E8CFC</div><div class="k">42 kft · violet</div></div>
+        <div class="stop" style="--c:#8C8B8C"><svg><use href="#glyph" width="100%" height="100%"/></svg><div class="hex">#8C8B8C</div><div class="k">Ground or unknown</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 TYPE -->
+  <section id="type">
+    <div class="sec-head">
+      <div>
+        <span class="lbl g">03 · Type</span>
+        <h2>Mona Sans for words. Mono for SQL.</h2>
+      </div>
+      <p class="lede">Both faces are open source (SIL Open Font License) and load from Google Fonts. The pixel type inside screenshots belongs to the badge, not to the brand.</p>
+    </div>
+
+    <div class="type-grid">
+      <div class="spec-card">
+        <div class="face"><span class="lbl g">Mona Sans</span><span class="lbl">Headlines, numbers, body</span></div>
+        <div class="big-name">Select Sky</div>
+        <div class="alphabet">ABCDEFGHIJKLMNOPQRSTUVWXYZ<br>abcdefghijklmnopqrstuvwxyz 0123456789</div>
+        <div class="weights">
+          <div><span class="lbl">400 · body</span><div class="s" style="font-weight:400">Radar</div></div>
+          <div><span class="lbl">500 · numbers</span><div class="s" style="font-weight:500">11,500</div></div>
+          <div><span class="lbl">600 · headlines</span><div class="s" style="font-weight:600">Select Sky</div></div>
+        </div>
+        <div class="nums">
+          <div>11,500<small>ft</small></div>
+          <div>359<small>kt</small></div>
+          <div>258°<small>brg</small></div>
+        </div>
+      </div>
+      <div class="spec-card">
+        <div class="face"><span class="lbl g">JetBrains Mono</span><span class="lbl">Tagline, SQL, labels</span></div>
+        <div class="tag-big">select * from sky;</div>
+        <div class="sql-cap">select count(*) from sky where dist &lt; 25;</div>
+        <div class="alphabet code" style="font-size:24px">ABCDEFGHIJKLMNOPQRSTUVWXYZ<br>abcdefghijklmnopqrstuvwxyz 0123456789 * ; &lt; &gt;</div>
+        <div class="lbl-demo">
+          <span class="lbl g">Uppercase label style</span>
+          <div class="row"><span class="lbl" style="font-size:14px">Select * from sky order by dist</span><span class="lbl g" style="font-size:14px">Row 8 of 11</span></div>
+          <div class="row"><span class="lbl" style="font-size:14px">Alt ft</span><span class="lbl" style="font-size:14px">Spd kt</span><span class="lbl" style="font-size:14px">Trk</span><span class="lbl" style="font-size:14px">V/S fpm</span></div>
+          <p class="lbl" style="text-transform:none;letter-spacing:.04em;font-size:13px;color:var(--text-3)">500 weight, 12 to 14 px, 0.16 em tracking, #8C8B8C. The tagline stays lowercase.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="where">
+      <div class="card"><span class="lbl g">Mona Sans</span><h3>Say it and count it.</h3><p>Product name, headlines, body copy, callsigns and each number with a unit. Weights 400, 500 and 600.</p></div>
+      <div class="card"><span class="lbl g">JetBrains Mono · lowercase</span><h3>Query it.</h3><p>The tagline and SQL captions in running text. Medium weight, no letter-spacing. Keep the semicolon.</p></div>
+      <div class="card"><span class="lbl g">JetBrains Mono · uppercase</span><h3>Label it.</h3><p>Small captions, section numbers, file names and status pills. Wide tracking, #8C8B8C.</p></div>
+    </div>
+  </section>
+
+  <!-- 04 SCREENS -->
+  <section id="screens">
+    <div class="sec-head">
+      <div>
+        <span class="lbl g">04 · Screens</span>
+        <h2>Six views, captured as they run.</h2>
+      </div>
+      <p class="lede">Pixel-exact captures from the badge.select simulator at 4x, shown here at 2x. The LIVE or DEMO chip stays as captured, and the data stays as captured.</p>
+    </div>
+
+    <div class="screens">
+      <figure><img src="screens/wall.png" width="1280" height="960" alt="Select Sky Wall view: callsign ASA923 with route, altitude, speed, track and vertical speed"><figcaption class="cap"><span class="lbl t2">01 · Wall</span><span class="lbl">screens/wall.png · 1280 × 960</span></figcaption></figure>
+      <figure><img src="screens/radar.png" width="1280" height="960" alt="Select Sky Radar view: a sweep over aircraft with the selected flight's details"><figcaption class="cap"><span class="lbl t2">02 · Radar</span><span class="lbl">screens/radar.png · 1280 × 960</span></figcaption></figure>
+      <figure><img src="screens/board.png" width="1280" height="960" alt="Select Sky Board view: a table of aircraft with callsign, type, altitude, speed, distance and bearing"><figcaption class="cap"><span class="lbl t2">03 · Board</span><span class="lbl">screens/board.png · 1280 × 960</span></figcaption></figure>
+      <figure><img src="screens/track.png" width="1280" height="960" alt="Select Sky Track view: a sky dome with bearing and elevation, altitude and speed history, and route progress"><figcaption class="cap"><span class="lbl t2">04 · Track</span><span class="lbl">screens/track.png · 1280 × 960</span></figcaption></figure>
+      <figure><img src="screens/stats.png" width="1280" height="960" alt="Select Sky Stats view: counts, an altitude histogram and top airlines"><figcaption class="cap"><span class="lbl t2">05 · Stats</span><span class="lbl">screens/stats.png · 1280 × 960</span></figcaption></figure>
+      <figure><img src="screens/setup.png" width="1280" height="960" alt="Select Sky Setup view: range, units, home, tracked callsign, brightness and auto dim"><figcaption class="cap"><span class="lbl t2">06 · Setup</span><span class="lbl">screens/setup.png · 1280 × 960</span></figcaption></figure>
+    </div>
+
+    <div class="state">
+      <figure style="margin:0"><img src="screens/alert.png" width="1280" height="960" style="width:100%" alt="Select Sky squawk alert screen: code 7700, general emergency, callsign, distance and altitude"><figcaption class="cap"><span class="lbl t2">Alert</span><span class="lbl">screens/alert.png · 1280 × 960</span></figcaption></figure>
+      <div class="txt">
+        <span class="lbl g">State chips and alerts</span>
+        <h3>Show the chip as captured.</h3>
+        <div class="chips"><span class="pill live">Live</span><span class="pill demo">Demo</span></div>
+        <p>LIVE means the app is showing live data. DEMO means it is showing demo traffic. Red belongs to the emergency-squawk alert and nothing else.</p>
+        <p>The squawk alert is a simulator capture. Caption it as the alert screen, not as a real emergency.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 BADGE -->
+  <section id="badge">
+    <div class="sec-head">
+      <div>
+        <span class="lbl g">05 · Badge renders</span>
+        <h2>The badge, rendered in the simulator.</h2>
+      </div>
+      <p class="lede">These are 3D renders from the badge.select simulator. They show the app on screen. They do not show a physical badge running it.</p>
+    </div>
+
+    <div class="rd">
+      <figure><div class="mat"><img src="badge/hero-radar.png" width="1600" height="2000" alt="Simulator render of the SELECT badge on its lanyard showing the Select Sky Radar view"></div><figcaption class="cap"><span class="lbl t2">Hero · radar</span><span class="lbl">1600 × 2000</span></figcaption></figure>
+      <figure><div class="mat"><img src="badge/hero-radar-left.png" width="1600" height="2000" alt="Simulator render of the SELECT badge angled left showing the Select Sky Radar view"></div><figcaption class="cap"><span class="lbl t2">Hero · radar, angled</span><span class="lbl">1600 × 2000</span></figcaption></figure>
+      <div class="col3">
+        <figure><div class="mat"><img src="badge/device-radar.png" width="1333" height="971" alt="Tight crop of the badge screen showing the Select Sky Radar view"></div><figcaption class="cap"><span class="lbl t2">Device crop · radar</span><span class="lbl">1333 × 971</span></figcaption></figure>
+        <div class="notes">
+          <span class="lbl g">Cropping rules</span>
+          <p>Cut simulator chrome out of every render. Keep the backdrop at #080C08. Keep the screen readable and the LIVE or DEMO chip visible.</p>
+          <p>The badge card and lanyard are Supabase's own SELECT artwork from the simulator. Do not add to them or crop them into decoration.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 SOCIAL -->
+  <section id="social">
+    <div class="sec-head">
+      <div>
+        <span class="lbl g">06 · Social</span>
+        <h2>Cards for posts, repos and contests.</h2>
+      </div>
+      <p class="lede">Each card carries the logo, the tagline or the descriptor, and a fine-print line: open source, MicroPython, simulator render, unofficial.</p>
+    </div>
+
+    <div class="soc">
+      <div class="r1">
+        <figure><div class="mat"><img src="social/x-post.png" width="1600" height="900" alt="X post card with the hero badge, tagline and three screens"></div><figcaption class="cap"><span class="lbl t2">X post</span><span class="lbl">1600 × 900</span></figcaption></figure>
+        <figure><div class="mat"><img src="social/contest-card.png" width="1600" height="900" alt="Contest card reading Built for the Supabase SELECT badge with the hashtag SelectBadge"></div><figcaption class="cap"><span class="lbl t2">Contest card</span><span class="lbl">1600 × 900</span></figcaption></figure>
+      </div>
+      <div class="r2">
+        <figure><div class="mat"><img src="social/og-card.png" width="1200" height="630" alt="Open Graph card with the logo, tagline, descriptor and a badge render"></div><figcaption class="cap"><span class="lbl t2">Open Graph card</span><span class="lbl">1200 × 630</span></figcaption></figure>
+        <figure><div class="mat"><img src="social/square.png" width="1080" height="1080" alt="Square post with a centered badge render and the tagline"></div><figcaption class="cap"><span class="lbl t2">Square post</span><span class="lbl">1080 × 1080</span></figcaption></figure>
+      </div>
+      <figure><div class="mat"><img src="social/readme-banner.png" width="1600" height="520" alt="README banner with the logo, tagline and four screens"></div><figcaption class="cap"><span class="lbl t2">README banner</span><span class="lbl">1600 × 520</span></figcaption></figure>
+    </div>
+  </section>
+
+  <!-- 07 MOTION -->
+  <section id="motion">
+    <div class="sec-head">
+      <div>
+        <span class="lbl g">07 · Motion</span>
+        <h2>One sweep and a tour.</h2>
+      </div>
+      <p class="lede">Both GIFs are 640 × 480 and under 1 MB. Use the sweep for a README or a post. Use the tour to show all six views.</p>
+    </div>
+
+    <div class="gifs">
+      <figure class="gif" style="margin:0"><img src="motion/radar-loop.gif" width="640" height="480" alt="Animation of one turn of the Select Sky radar sweep over aircraft colored by altitude"><figcaption class="cap"><span class="lbl t2">Radar loop · 4.0 s</span><span class="lbl">motion/radar-loop.gif</span></figcaption></figure>
+      <figure class="gif" style="margin:0"><img src="motion/views-tour.gif" width="640" height="480" alt="Animation stepping through the six Select Sky views"><figcaption class="cap"><span class="lbl t2">Views tour · 7.2 s</span><span class="lbl">motion/views-tour.gif</span></figcaption></figure>
+    </div>
+
+    <div class="gif-note">
+      <img src="motion/radar-loop-small.gif" width="320" height="240" alt="Half-size radar loop" style="width:320px">
+      <div>
+        <span class="lbl g">Embeds</span>
+        <p style="margin-top:12px">radar-loop-small.gif is the same loop at 320 × 240 for narrow embeds. Two of the 36 radar frames were rebuilt from the app's own sweep model to close the loop.</p>
+        <p>The loop shows flight SKW3440 at 14:16Z. The stills show ASA923 at 14:12Z. They come from different capture moments.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 08 COPY BANK -->
+  <section id="copy">
+    <div class="sec-head">
+      <div>
+        <span class="lbl g">08 · Copy bank</span>
+        <h2>Paste-ready words.</h2>
+      </div>
+      <p class="lede">Plain, precise, a little SQL-flavored, and honest about what is tested. Keep the hedges when you edit.</p>
+    </div>
+<div class="copy-grid">
+<div class="copy"><div class="head"><span class="lbl g">One-liner</span><span class="lbl">8 words · limit 12</span></div><p class="body">A flight wall for the Supabase SELECT badge.</p></div>
+<div class="copy"><div class="head"><span class="lbl g">Short description</span><span class="lbl">48 words · limit 50</span></div><p class="body sm">Select Sky is an open-source MicroPython app that turns the Supabase SELECT badge into a flight wall. It shows the aircraft around you, or one callsign anywhere, across six views. It was developed and tested in the badge.select simulator and has not run on a physical badge. Unofficial.</p></div>
+<div class="copy wide"><div class="head"><span class="lbl g">Long description</span><span class="lbl">102 words · limit 120</span></div><p class="body sm" style="max-width:96ch">Select Sky is a flight wall for the Supabase SELECT badge (a Pimoroni Tufty 2350). It shows the aircraft around you, or one callsign anywhere, across six views: Wall, Radar, Board, Track, Stats and Setup. It adds an emergency-squawk alert and rear-light effects. Live data needs your own Supabase Edge Function relay; without one, the browser shows demo traffic. Select Sky is open source (MIT), written in MicroPython and inspired by FlightWall. It was developed and tested in the badge.select simulator and has not run on a physical badge. It is unofficial: not affiliated with or endorsed by Supabase, Pimoroni or FlightWall.</p></div>
+<div class="copy"><div class="head"><span class="lbl g">Feature bullets</span><span class="lbl">6 bullets</span></div><ul class="b"><li>Six views: Wall, Radar, Board, Track, Stats and Setup.</li><li>Shows the aircraft around you, or follows one callsign anywhere.</li><li>A radar sweep with aircraft colored by altitude.</li><li>An emergency-squawk alert takes over the screen.</li><li>Rear-light effects. Not run on a physical badge.</li><li>Live data through your own Supabase Edge Function relay, with demo traffic when there is none.</li></ul></div>
+<div class="copy"><div class="head"><span class="lbl g">GitHub repo</span><span class="lbl">113 characters · limit 120</span></div><p class="body sm">Flight wall for the Supabase SELECT badge: six views and a radar. MicroPython, MIT. Unofficial, simulator-tested.</p><div class="head" style="margin:28px 0 0"><span class="lbl g">Topics</span><span class="lbl">11 topics</span></div><div class="topics"><span class="topic">micropython</span><span class="topic">badgeware</span><span class="topic">tufty-2350</span><span class="topic">pimoroni</span><span class="topic">supabase</span><span class="topic">supabase-edge-functions</span><span class="topic">aircraft</span><span class="topic">flight-tracker</span><span class="topic">radar</span><span class="topic">select-badge</span><span class="topic">open-source</span></div></div>
+<div class="copy wide"><div class="head"><span class="lbl g">Posts for X</span><span class="lbl">Each 260 characters or fewer, with #SelectBadge</span></div><div class="posts"><div class="post"><div class="head" style="margin:0"><span class="lbl t2">Tagline post</span><span class="lbl">222 / 260</span></div><p><span class="tl">select * from sky;</span>
+
+Select Sky is a flight wall for the Supabase SELECT badge: six views, a radar sweep and an emergency-squawk alert. Open source, MicroPython, built in the badge.select simulator. Unofficial. #SelectBadge</p></div><div class="post"><div class="head" style="margin:0"><span class="lbl t2">Radar post</span><span class="lbl">194 / 260</span></div><p>The Radar view in Select Sky: aircraft colored by altitude under a sweep that keeps turning. MIT licensed. Tested in the badge.select simulator, not on a physical badge. Unofficial. #SelectBadge</p></div><div class="post"><div class="head" style="margin:0"><span class="lbl t2">Alert post</span><span class="lbl">214 / 260</span></div><p>An aircraft squawks 7700 and the screen takes over in red: code, callsign, distance and altitude. That is the alert in Select Sky, an unofficial flight wall for the SELECT badge. Simulator-tested only. #SelectBadge</p></div></div></div>
+<div class="copy wide"><div class="head"><span class="lbl g">Alt text</span><span class="lbl">Five main images</span></div><ul class="alts"><li><span class="lbl">badge/hero-radar.png</span><span>Simulator render of the Supabase SELECT badge on its lanyard, with the Select Sky Radar view on screen: a green sweep over aircraft colored by altitude.</span></li><li><span class="lbl">badge/hero-wall.png</span><span>Simulator render of the SELECT badge on its lanyard, with the Select Sky Wall view on screen: callsign SKW3440, a route bar and four stat tiles.</span></li><li><span class="lbl">screens/all-views.png</span><span>Six Select Sky screens in a grid, each with a LIVE chip: Wall, Radar, Board, Track, Stats and Setup, on a dark green-black background.</span></li><li><span class="lbl">social/og-card.png</span><span>Select Sky logo and the tagline <span class="ic">select * from sky;</span> beside a simulator render of the SELECT badge running the Radar view. Open source, MicroPython, simulator render, unofficial.</span></li><li><span class="lbl">motion/radar-loop.gif</span><span>Animation of one full turn of the Select Sky radar sweep over aircraft colored by altitude, with the selected flight&#x27;s details beside the scope.</span></li></ul></div>
+</div>
+  </section>
+
+  <footer>
+    <div class="row">
+      <div>
+        <img src="logo/lockup-horizontal-dark.png" width="960" height="344" alt="Select Sky" style="width:300px;margin-left:-26px">
+        <p class="lbl" style="margin-top:8px">Full guide: <a href="README.md" style="color:var(--green)">branding/README.md</a></p>
+      </div>
+      <p class="lbl">Unofficial · Not affiliated with or endorsed by Supabase, Pimoroni or FlightWall · Inspired by FlightWall · MIT<br>Developed and tested in the badge.select simulator. Not run on a physical badge.</p>
+    </div>
+  </footer>
+</div>
+
+</body>
+</html>

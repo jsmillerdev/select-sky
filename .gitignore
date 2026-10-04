@@ -1,0 +1,7 @@
+# Supabase CLI state: names the project you linked or deployed to
+supabase/.temp/
+# Simulator harness dependencies and output
+tests/sim/node_modules/
+tests/sim/out/
+__pycache__/
+.DS_Store

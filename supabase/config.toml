@@ -1,0 +1,3 @@
+# The sky function relays public aircraft data to a browser, so it takes no key.
+[functions.sky]
+verify_jwt = false
