@@ -12,8 +12,15 @@
 # Keep a path after the host (https://host/path); a query string such as ?apikey=... is fine.
 PROXY_URL = ""
 
+# The page the QR code in Setup opens on your phone. It sends the phone's position to your relay
+# (PROXY_URL), which hands it to the badge. The default is this project's page.
+LOCATE_PAGE = "https://jsmillerdev.github.io/select-sky/"
+
 # Where "nearby" is. None looks the position up from your IP address once at
-# startup. Set (latitude, longitude, "LABEL") to pin it and skip that lookup.
+# startup, which is only as precise as your city. Set (latitude, longitude,
+# "LABEL") to pin it and skip that lookup. On the badge, the Exact position row
+# in Setup sets a precise position without editing this file. HOME wins when
+# both are set.
 HOME = None
 
 # Used when the lookup fails and HOME is None: SFO, home of Supabase SELECT.

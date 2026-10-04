@@ -10,6 +10,7 @@ badge.mode(HIRES | VSYNC)       # first: this replaces the global screen
 screen.antialias = image.X2
 
 import config
+import skygeo
 import skyoverlay
 import skytheme
 import view_board
@@ -26,7 +27,7 @@ badge.default_clear = skytheme.BG
 
 VIEWS = (view_wall, view_radar, view_board, view_track, view_stats, view_setup)
 SETTINGS = {"range": 25, "metric": False, "bright": 85, "auto_dim": False, "leds": True,
-            "ground": False, "cycle": 7, "track": "", "track_cfg": "", "home": ""}
+            "ground": False, "cycle": 7, "track": "", "track_cfg": "", "home": "", "pos": None}
 CYCLE_TOP = 5                 # auto mode steps through this many of the nearest
 HOME_SETTLE_MS = 700          # a Home pick applies this long after the last one, so a run of presses is one move
 SPLASH_MIN_MS = 2300
@@ -116,8 +117,19 @@ class App:
         self.save()
 
     def set_home(self, code):
-        """Pick a listed airport for home, or '' for the automatic position. It applies once the picks stop."""
+        """Pick a listed airport for home, '' for the automatic position or EXACT for the saved one.
+
+        It applies once the picks stop.
+        """
         self.home_pick, self._home_ms = code, self.now
+
+    def set_pos(self, lat, lon):
+        """Save an exact position and make it home. It applies at once: a save is one deliberate press."""
+        self.settings["pos"] = [lat, lon]
+        self.settings["home"] = skygeo.EXACT
+        self.home_pick = None           # a pick still waiting would replace it
+        self.feed.relocate()
+        self.save()
 
     def nav(self):
         """UP and DOWN step the selection, and keep stepping while held."""

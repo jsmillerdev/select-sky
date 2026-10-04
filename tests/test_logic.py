@@ -5,6 +5,7 @@ Run from the workspace root:  python3 tests/test_logic.py
 Drawing, input and networking only run on the badge or in badge.select Make.
 """
 
+import ast
 import sys
 import time
 import unittest
@@ -24,6 +25,7 @@ import skydata  # noqa: E402
 import skydemo  # noqa: E402
 import skyfeed  # noqa: E402
 import skygeo  # noqa: E402
+import skyqr  # noqa: E402
 from skymodel import ALT, CS, HEX, LAT, LON, SEEN, Model  # noqa: E402
 
 SFO = (37.6213, -122.3790)
@@ -69,6 +71,16 @@ class Geo(unittest.TestCase):
         self.assertLess(skygeo.elevation(35000, 250), 0)    # past the horizon, about 200 nm away at this height
         self.assertLess(skygeo.elevation(1000, 100), 0)
         self.assertEqual((skygeo.elevation(0, 5), skygeo.elevation(-1, 5)), (0.0, 0.0))     # no height, no angle
+
+    def test_saved_exact_position_is_a_checked_pair(self):
+        pos = lambda v: skygeo.exact_pos({"pos": v})        # noqa: E731
+        self.assertEqual(pos([33.4512, -112.0638]), (33.4512, -112.0638))
+        self.assertEqual(pos((90, -180)), (90.0, -180.0))
+        self.assertEqual(pos([-90, 180]), (-90.0, 180.0))
+        self.assertIsNone(skygeo.exact_pos({}))                               # settings saved before the position existed
+        for bad in (None, [], [1], [1, 2, 3], "12", ["a", "b"], [None, 0], {"lat": 1, "lon": 2}, 5,
+                    [90.0001, 0], [-90.0001, 0], [0, 180.0001], [0, -180.0001], [float("nan"), 0], [0, float("inf")]):
+            self.assertIsNone(pos(bad), bad)
 
     def test_compass_and_turn(self):
         self.assertEqual(skygeo.compass(0), "N")
@@ -459,6 +471,134 @@ class Feeds(unittest.TestCase):
         self.assertEqual(skydata.glyph("B738", "A3"), 0)
 
 
+class QrCodes(unittest.TestCase):
+    """The QR encoder against fixed vectors: byte mode, level L, mask 7, the version picked for the length.
+
+    The vectors come from python-qrcode 8.2 (version, level and mask given) and match nayuki's qrcodegen 1.8.0
+    module for module. Each is the packed rows as hex, so the test needs no third-party package.
+    """
+
+    QR_BASE = ("https://jsmillerdev.github.io/select-sky/#K7M2QX@yourprojectrefxxxxxx.supabase.co/functions/v1/sky"
+               "?apikey=EXAMPLE-KEY-012345678901234567890123456789012345678901234")
+    QR_VECTORS = (
+        (12, ""
+         "fe2bf882aa08bab2e8ba0ae8bafae882e208feabf8008000d33bb0c8138862b028844ad8731140009308fedaf0822190ba"
+         "40c0baae98ba1ca882a400fe8290"
+         ),
+        (20, ""
+         "fe233f8082e3a080ba822e80ba4b2e80baedae8082a92080feaabf8000b08000d31c3b0078d8a080ea98b180717ff0004b"
+         "b2e580481476809a169a8069718900ca0dfe0000cf8c80fedbad80822a8f00ba60fc80baf31e00ba219a8082a3a400fec9"
+         "f180"
+         ),
+        (28, ""
+         "fe233f8082e3a080ba822e80ba432e80baedae8082a92080feaabf8000b08000d30c3b0005c8a0804a88b180517ff0004a"
+         "3ce58035007680be7e9a8069a78900e649fe0000db8c80fee3ad80827a8f00ba56fc00ba8f1e00ba2d9a8082a7a400fefd"
+         "f180"
+         ),
+        (40, ""
+         "fe4f93f8829bea08bafa62e8ba73a2e8ba85e2e882d39208feaaabf800cad800d32683b061b0ee48c6629ff01405a4b0ca"
+         "8cde58acfe5400df08a4f821afccd0bab7741000e2c748bea4471805554b188b9a8fa0009c98b8fefeaa90821c28f0ba32"
+         "4f80ba9602f0ba3614e882b0fd90fe8d6a50"
+         ),
+        (53, ""
+         "fe7793f8829bea08ba9a62e8ba2ba2e8bab5e2e882e39208feaaabf800d2d800d35e83b074f8ee4822ca9ff080c5a4b003"
+         "34de5820fe54007390a4f89077ccd0e343741065cac748b68c471834234b1887f48fa000c498b8fea2aa90820c28e0ba58"
+         "4f98badc02e0ba7414e882eefd90fea36a50"
+         ),
+        (65, ""
+         "fe491f3f80829b2f2080baf9d02e80ba73622e80ba85f5ae8082d3b22080feaaaabf8000c9740000d326a7bb0049b4e0a4"
+         "800264767480980406c1803e0d9c6480a07874af80624e6fcd00b8ecf74d003ad107a880d9c0e5c600bb42a0ed80fd70d5"
+         "c400bade5545001c7ac8a280da7e3234805dff0c5d80a7b245f80000d43f8e80feb6e8ad0082507e8800ba0ccefd80baee"
+         "cdf980ba1a4f9d8082ab6de800fee00cb500"
+         ),
+        (78, ""
+         "fe311f3f8082f32f2080ba89d02e80ba33622e80bab5f5ae80828bb22080feaaaabf8000d1740000d35ea7bb00c8cce0a4"
+         "8086ac767480b9e406c18006a59c6480782874af8087766fcd00601cf74d00c3a107a8808d58e5c6006b02a0ed80f500d5"
+         "c400bf9655450078cac8a280d3ce323480503f0c5d80937c45f80000e63f8e80fef8e8ad0082147e8980ba70cefc00baf8"
+         "cdf980ba6a4f9d8082b16de800fee60cb500"
+         ),
+        (98, ""
+         "fe495773f8829b41b208baf9e182e8ba730ab2e8ba83e37ae882d77e5a08feaaaaabf800ca452800d3279de3b0a430efca"
+         "68fae0fcaea82545bc4ad837ec555a08b45c7daf08ff8ec3204805ecf54e502770463728bc44a6aab87a862e8658e5b246"
+         "3a30bedd9d7b88f4f8486e68dfb8be20b88c3ca6cc8057fdcdde5818725bcb6886b62f4a4851145ce490cab25e0fa000bc"
+         "8518a8fee2a83af882627428b8ba2d8ccf98bac86d81f8ba40fc10d88295b74b80fe84c4fb18"
+         ),
+        (106, ""
+         "fe515773f882fb41b208ba91e182e8ba130ab2e8baf3e37ae882ef7e5a08feaaaaabf800c2452800d32f9de3b00408efca"
+         "683a20fcaea8a985bc4ad86fbc555a0839ac7daf08cafec320481934f54e50e20046372858bca6aab856262e8658393246"
+         "3a30a2fd9d7b8864c8486e683ec0be20b8283ca6cc80a675cdde5874e25bcb689a362f4a4871745ce490c6525e0fa000dc"
+         "8518a8fe82a83af882027428b8ba4d8ccf90bac86d81f8ba60fc10d882f5b74b80fec4c4fb18"
+         ),
+        (125, ""
+         "fe1727313f8082df65d0a080baa440acae80ba5f67ab2e80babe15b82e8082eb109fa080feaaaaaabf8000ca55258000d3"
+         "4e9c5b3b00bcb6be8ce08017ae3221d700599c3ec90380435b695ca500605a88e9c0002f2a6b60c78011edfff591003790"
+         "4485d10019f8d10477808a0c0aaac28054b477af5d80a7a321c0e600f01420e4e080c2a25625bb00a927b74a0300d2a4c7"
+         "4c64005dc876c1c000ef78eb60a78015365e7fad00e2deea8dc080714c35ec778086980e024380288aed27f4809e6610f1"
+         "fb0000c8f8cb8e80fea83264ad00822326d08f00ba7068dcf800ba90e8ee3800ba36a7a59d8082f45745a900fe80d485f5"
+         "00"
+         ),
+        (134, ""
+         "fe5b27313f8082bf65d0a080bada40acae80ba29e7ab2e80bab515b82e8082fb109fa080feaaaaaabf8000ba55258000d3"
+         "6e9c5b3b00a84abe8ce080b6263221d70024963ec90380826f695ca50018d288e9c000eb726b60c780b89dfff591009300"
+         "4485d1003038d10477803f2a0aaac2800c1277af5d808ae521c0e600f9c620e4e080574a5625bb008d6fb74a03009be4c7"
+         "4c6400a1a876c1c000daf8eb60a7806d545e7fad000b92ea8dc08035d435ec778086800e0243802922ed27f50093b610f1"
+         "fb80008cf8cb8e80fe8e3264ad00822526d08f00ba5668dcf800bac2e8ee3980ba7ea7a59c0082e45745a900fea0d485f5"
+         "00"
+         ),
+        (142, ""
+         "fe3ec93b4bf882c28e379208baf0b3e212e8ba5c9b101ae8ba8d0ff6fae88289589c4208feaaaaaaabf800eb28e2b000d3"
+         "56fff903b0350cbec84028e788a4cd3dc86914f9e271981e4779bad59854ceb50924c84750cefec2706881c55daf8826df"
+         "2614a358f56363ad12e006b3f4a908d814c7c39dc7003fe52fdb7fd0e8ba38c848d88ab00a8aeac8989dd8cd08902f9caf"
+         "dedfd064503808b298d6ac62f41cd05d70e453aa10b693f1d6e9d091502a64163046daa756060885d55352c3500218eeef"
+         "7950b1a92a100a180b47f9f0e7e878bf59795d509b876fcbef9000c2f88928a8fef6fafeda90825798a888c8ba19bfb68f"
+         "98ba8774ed99f8ba1a6cc81b808295fedaec00feb5319f2350"
+         ),
+        (150, ""
+         "fe2cc93b4bf882ca0e379208bae9b3e212e8ba6c9b101ae8ba850ff6fae882ad589c4208feaaaaaaabf800c128e2b000d3"
+         "397ff903b02c0b3ec8402842a8a4cd3dc8888479e271981baf79bad59868d6b50924c87602cefec2700ce9c55daf88ba0f"
+         "a614a358984163ad12e0fe03f4a908d814fec39dc700df952fdb7fd0f8fa38c848d80a860a8aeac828ffd8cd08905fbb2f"
+         "dedfd02d77b808b298e3ace2f41cd028106453aa10ab13f1d6e9d0ad302a6416309b5aa7560608ccd55352c3507ad96eef"
+         "7950a40d2a100a180b07f9f0e7e879bf59795d509a876fcbef9800e2f88928a8fef6fafeda90821798a888c8ba19bfb68f"
+         "98ba8774ed99e8ba1a6cc81b8082b5fedaec00fef5319f2350"
+         ),
+    )
+
+    def test_matrices_match_the_reference_module_for_module(self):
+        for length, want in self.QR_VECTORS:
+            with self.subTest(length=length):
+                size, rows = skyqr.matrix(self.QR_BASE[:length])
+                self.assertEqual(b"".join(rows).hex(), want)
+                self.assertEqual(len(rows), size)
+
+    def test_the_version_follows_the_length(self):
+        # Level L holds 17, 32, 53, 78, 106, 134 and 154 bytes in versions 1 to 7.
+        for version, top in enumerate((17, 32, 53, 78, 106, 134, 154), 1):
+            self.assertEqual(skyqr.matrix("a" * top)[0], 4 * version + 17)
+            if version < 7:
+                self.assertEqual(skyqr.matrix("a" * (top + 1))[0], 4 * version + 21)
+        with self.assertRaises(ValueError):
+            skyqr.matrix("a" * 155)
+
+    def test_multibyte_text_counts_bytes(self):
+        self.assertEqual(skyqr.matrix("\u00e9" * 17)[0], 29)      # 34 bytes of UTF-8: version 3
+
+    def test_the_locate_text_fits_a_small_code(self):
+        text = config.LOCATE_PAGE + "#K7M2QX@yourprojectrefxxxxxx.supabase.co/functions/v1/sky"
+        self.assertEqual(text, self.QR_BASE[:len(text)])
+        self.assertEqual(skyqr.matrix(text)[0], 37)                # version 5
+
+    def test_rows_are_packed_bits_with_a_finder_in_three_corners(self):
+        size, rows = skyqr.matrix("hello")
+        self.assertEqual((size, {len(r) for r in rows}), (21, {3}))
+        dark = lambda x, y: rows[y][x >> 3] >> (7 - (x & 7)) & 1
+        ring = [(x, y) for x in range(7) for y in range(7) if max(abs(x - 3), abs(y - 3)) == 3]
+        for ox, oy in ((0, 0), (size - 7, 0), (0, size - 7)):
+            self.assertTrue(all(dark(ox + x, oy + y) for x, y in ring))
+            self.assertFalse(dark(ox + 1, oy + 1))
+            self.assertTrue(dark(ox + 3, oy + 3))
+        self.assertTrue(dark(8, size - 8))                          # the one fixed dark module
+
+
 def payload(*rows, now=1791039228):
     return {"now": now, "n": len(rows), "a": [list(r) for r in rows]}
 
@@ -706,6 +846,279 @@ class FeedStartup(FeedHarness):
         f.relocate()
         f._locate(0)
         self.assertEqual((self.model.home_label, f.tz_s), ("JFK", None))
+
+
+class FeedExact(FeedHarness):
+    """Home from the position saved in Setup: it wins over the IP lookup, which only names the city and the time zone."""
+
+    POS = [33.4512, -112.0638]
+
+    def exact(self, **kw):
+        kw.setdefault("home", None)
+        kw["settings"] = dict(kw.get("settings") or {}, home="EXACT", pos=self.POS)
+        return self.build(**kw)
+
+    def test_exact_position_wins_over_the_ip_lookup(self):
+        f = self.exact()
+        self.serve({"ipwho": self.GEO, "supabase": payload(row("real1", lat=33.46, lon=-112.07))})
+        self.pump(3000)
+        self.assertEqual(self.model.home, (33.4512, -112.0638))      # not the 40.64, -73.78 the lookup answered
+        self.assertTrue(f.exact)
+        self.assertEqual(self.hosts()[:2], ["ipwho.is", "abc.supabase.co"])
+        self.assertIn("lat=33.4512&lon=-112.0638", self.urls[1])     # all four decimals reach the aircraft source
+        self.assertEqual(f.status, "LIVE")
+
+    def test_the_lookup_under_an_exact_position_sets_the_city_and_time_zone_only(self):
+        f = self.exact()
+        self.serve({"ipwho": self.GEO, "supabase": payload(row("real1", lat=33.46, lon=-112.07))})
+        f._locate(0)
+        self.assertEqual((self.model.home, self.model.home_label, f.tz_s), ((33.4512, -112.0638), "TESTVILLE", -14400))
+        self.assertEqual(self.hosts().count("ipwho.is"), 1)
+        self.pump(skyfeed.GEO_RETRY_MS * 2)
+        self.assertEqual(self.hosts().count("ipwho.is"), 1)          # answered, so it is not asked again
+        self.assertEqual(self.model.home, (33.4512, -112.0638))
+
+    def test_a_failed_lookup_leaves_the_label_here_and_the_time_zone_unknown(self):
+        f = self.exact()
+        self.serve({"ipwho": {"success": False}, "supabase": payload(row("real1", lat=33.46, lon=-112.07))})
+        self.pump(skyfeed.GEO_RETRY_MS * 6)
+        self.assertEqual((self.model.home, self.model.home_label, f.tz_s), ((33.4512, -112.0638), "HERE", None))
+        self.assertEqual(self.hosts().count("ipwho.is"), skyfeed.GEO_TRIES)
+        self.assertEqual(f.status, "LIVE")
+
+    def test_a_late_ip_answer_names_the_city_but_never_moves_an_exact_home(self):
+        f = self.exact()
+        answers = iter([skyfeed.HttpError(429), self.GEO])
+
+        def geo(url):
+            a = next(answers)
+            if isinstance(a, Exception):
+                raise a
+            return a
+
+        self.serve({"ipwho": geo, "supabase": payload(row("real1", lat=33.46, lon=-112.07))})
+        self.pump(skyfeed.GEO_RETRY_MS - 1000)
+        self.assertEqual((self.model.home_label, f.tz_s), ("HERE", None))
+        self.pump(skyfeed.GEO_RETRY_MS + 3000)
+        self.assertEqual((self.model.home, self.model.home_label, f.tz_s), ((33.4512, -112.0638), "TESTVILLE", -14400))
+        self.assertTrue(f.exact)
+
+    def test_a_badge_joining_wifi_places_home_at_once_and_asks_for_the_city_when_it_is_up(self):
+        f = self.exact(on_badge=True, join_ms=20000)
+        self.serve({"ipwho": self.GEO, "supabase": lambda u: payload(row("real1", lat=33.46, lon=-112.07))})
+        self.pump(19900)
+        self.assertEqual((self.urls, self.model.home, self.model.home_label), ([], (33.4512, -112.0638), "HERE"))
+        self.pump(40000)
+        self.assertEqual((self.model.home, self.model.home_label, f.tz_s), ((33.4512, -112.0638), "TESTVILLE", -14400))
+        self.assertEqual(self.hosts().count("ipwho.is"), 1)
+
+    def test_config_home_wins_over_an_exact_position(self):
+        f = self.exact(home=(10.0, 20.0, "PIN"))
+        self.serve({"ipwho": self.GEO})
+        self.pump(2000)
+        self.assertEqual((self.model.home, self.model.home_label, f.exact, f.tz_s), ((10.0, 20.0), "PIN", False, None))
+        self.assertNotIn("ipwho.is", self.hosts())
+
+    def test_an_airport_pick_keeps_the_saved_position_but_does_not_use_it(self):
+        f = self.build(home=None, settings={"home": "JFK", "pos": self.POS})
+        self.serve({"ipwho": self.GEO})
+        f._locate(0)
+        self.assertEqual((self.model.home_label, f.exact, f.tz_s), ("JFK", False, None))
+        self.assertEqual(self.settings["pos"], self.POS)
+        self.assertEqual(self.hosts(), [])
+
+    def test_exact_without_a_usable_position_falls_back_to_automatic(self):
+        for bad in (None, [], [33.4], "x", ["a", "b"], [95.0, 0.0], [0.0, 190.0], [float("nan"), 0.0]):
+            with self.subTest(pos=bad):
+                f = self.build(home=None, settings={"home": "EXACT", "pos": bad})
+                self.serve({"ipwho": self.GEO})
+                f._locate(0)
+                self.assertEqual((self.model.home, self.model.home_label, f.exact, f.tz_s), ((40.64, -73.78), "TESTVILLE", False, -14400))
+
+    def test_settings_saved_before_the_position_existed_still_start(self):
+        old = {"range": 25, "ground": False, "home": "", "track": "", "metric": False}     # no "pos" key at all
+        for home in ("", "JFK", "EXACT"):
+            with self.subTest(home=home):
+                f = self.build(home=None, settings=dict(old, home=home))
+                self.serve({"ipwho": self.GEO})
+                f._locate(0)
+                self.assertEqual((self.model.home_label, f.exact), ("JFK" if home == "JFK" else "TESTVILLE", False))
+        tree = ast.parse((ROOT / "select_sky" / "__init__.py").read_text())
+        defaults = next(n.value for n in tree.body if isinstance(n, ast.Assign) and getattr(n.targets[0], "id", "") == "SETTINGS")
+        self.assertIsNone(ast.literal_eval(defaults)["pos"])         # State.load merges a save over these defaults
+
+    def test_an_ip_lookup_armed_before_a_setup_pick_cannot_move_the_picked_home(self):
+        f = self.build(home=None)
+        answers = iter([skyfeed.HttpError(429)])
+
+        def geo(url):
+            a = next(answers, self.GEO)
+            if isinstance(a, Exception):
+                raise a
+            return a
+
+        self.serve({"ipwho": geo, "supabase": payload(row("real1", lat=37.65))})
+        while f._job != f._locate_ip:                                # the retry is armed: it runs on the next frame
+            self.assertLess(self.t, skyfeed.GEO_RETRY_MS * 2)
+            self.pump(self.t + 16)
+        self.settings["home"] = "JFK"                                # a pick applies between the two frames
+        f.relocate()
+        self.pump(self.t + 16)
+        self.assertEqual((self.model.home_label, self.hosts().count("ipwho.is")), ("SFO", 1))     # the stale job did nothing
+        self.pump(self.t + 3000)
+        self.assertEqual((self.model.home_label, f.tz_s, self.hosts().count("ipwho.is")), ("JFK", None, 1))
+
+
+class FeedLocate(FeedHarness):
+    """The locate job: ask the relay for the position a phone sent under a code, beside the aircraft polls."""
+
+    CODE = "K7M2QX"
+    WHERE = {"lat": 33.4512, "lon": -112.0638, "acc": 9}
+
+    def waiting(self, url):
+        raise skyfeed.HttpError(404)
+
+    def relay(self, here, **kw):
+        """Build a feed on a relay whose answer to a locate ask is here(url), and which also serves aircraft."""
+        f = self.build(**kw)
+        self.asks, self.polls = [], []                       # virtual time of each locate ask and each aircraft poll
+
+        def sky(url):
+            if "here=" in url:
+                self.asks.append(self.t)
+                return here(url)
+            self.polls.append(self.t)
+            return payload(row("a"))
+
+        self.serve({"supabase": sky})
+        return f
+
+    def test_waiting_answers_are_normal_and_the_aircraft_polls_go_on(self):
+        f = self.relay(self.waiting)
+        self.pump(1000)
+        f.locate(self.CODE, self.t)
+        self.pump(self.t + 40000)
+        self.assertTrue(14 <= len(self.asks) <= 16, self.asks)
+        self.assertTrue(all(b - a >= skyfeed.LOCATE_EVERY_MS for a, b in zip(self.asks, self.asks[1:])), self.asks)
+        self.assertTrue(all(b - a >= 12000 for a, b in zip(self.polls, self.polls[1:])), self.polls)
+        self.assertGreaterEqual(len(self.polls), 4)
+        self.assertEqual(len(set(self.asks + self.polls)), len(self.asks + self.polls))    # never two in one frame
+        self.assertEqual((f.status, f.source, f._fails, f.note), ("LIVE", "edge fn", 0, "1 rows from edge fn"))
+        self.assertIn(self.PROXY + "?here=" + self.CODE, self.urls)
+        self.assertIsNone(f.take_pos())
+        self.assertGreater(f.locate_left(self.t), 0)
+
+    def test_a_position_is_delivered_once_and_the_asking_stops(self):
+        state = {"n": 0}
+
+        def here(url):
+            state["n"] += 1
+            if state["n"] < 3:
+                raise skyfeed.HttpError(404)
+            return self.WHERE
+
+        f = self.relay(here)
+        f.locate(self.CODE, 0)
+        self.pump(20000)
+        self.assertEqual(len(self.asks), 3)
+        self.assertEqual(f.take_pos(), (33.4512, -112.0638, 9.0))
+        self.assertIsNone(f.take_pos())
+        self.assertEqual(f.locate_left(self.t), 0)
+        self.pump(self.t + 20000)
+        self.assertEqual(len(self.asks), 3)
+        self.assertEqual((f.status, f._fails), ("LIVE", 0))
+
+    def test_what_arrives_is_checked_before_it_is_handed_over(self):
+        good = {"lat": -33.9, "lon": 151.2, "acc": None}
+        for answer, want in ((good, (-33.9, 151.2, None)), ({"lat": 95, "lon": 0}, None), ({"lat": 0, "lon": -181}, None),
+                             ({"lat": "x", "lon": 0}, None), ({"lat": float("nan"), "lon": 0}, None),
+                             ({"error": "waiting"}, None), ([1, 2], None)):
+            with self.subTest(answer=answer):
+                f = self.relay(lambda url: answer)
+                f.locate(self.CODE, 0)
+                self.pump(3000)
+                self.assertEqual(f.take_pos(), want)
+                self.assertEqual(bool(f.code), want is None)  # a usable answer ends the asking
+
+    def test_the_code_expires_after_five_minutes(self):
+        self.assertEqual(skyfeed.LOCATE_LIFE_MS, 5 * 60 * 1000)
+        f = self.relay(self.waiting)
+        f.locate(self.CODE, 0)
+        self.pump(10000)
+        self.assertEqual(f.locate_left(self.t), skyfeed.LOCATE_LIFE_MS - self.t)
+        self.pump(skyfeed.LOCATE_LIFE_MS + 5000)
+        self.assertEqual(f.locate_left(self.t), 0)
+        self.assertLess(max(self.asks), skyfeed.LOCATE_LIFE_MS)
+        asked, polled = len(self.asks), len(self.polls)
+        self.assertGreater(asked, 100)
+        self.pump(self.t + 40000)
+        self.assertEqual(len(self.asks), asked)              # nothing more is asked ...
+        self.assertGreater(len(self.polls), polled + 2)      # ... and the polls never noticed
+        self.assertEqual((f.status, f.source, f._fails), ("LIVE", "edge fn", 0))
+        f.locate("NEWCOD", self.t)                           # a fresh code asks again
+        self.pump(self.t + 6000)
+        self.assertEqual(len(self.asks), asked + 2)
+
+    def test_no_request_without_a_relay(self):
+        f = self.build(proxy="")
+        self.serve({})
+        f.locate(self.CODE, 0)
+        self.pump(20000)
+        self.assertEqual(self.urls, [])
+
+    def test_the_code_joins_the_relay_url_with_a_question_mark_or_an_ampersand(self):
+        for proxy, want in ((self.PROXY, self.PROXY + "?here=K7M2QX"),
+                            (self.PROXY + "?apikey=k", self.PROXY + "?apikey=k&here=K7M2QX"),
+                            (self.PROXY + "?a=%41%20b", self.PROXY + "?a=%41%20b&here=K7M2QX")):
+            with self.subTest(proxy=proxy):
+                f = self.relay(self.waiting, proxy=proxy)
+                f.locate(self.CODE, 0)
+                self.pump(4000)
+                self.assertIn(want, self.urls)
+
+    def test_cancelling_stops_the_asking_even_for_a_job_already_armed(self):
+        f = self.relay(self.waiting)
+        f.locate(self.CODE, 0)
+        self.pump(8000)
+        asked = len(self.asks)
+        f.locate_stop()
+        self.pump(self.t + 20000)
+        self.assertEqual((len(self.asks), f.locate_left(self.t)), (asked, 0))
+        f.locate(self.CODE, self.t)
+        while f._job != f._ask_phone:                        # armed: it runs on the next frame
+            self.assertLess(self.t, 60000)
+            self.pump(self.t + 16)
+        f.locate_stop()
+        self.pump(self.t + 16)
+        self.assertEqual(len(self.asks), asked)
+
+    def test_a_slow_failed_ask_is_not_repeated_at_once_and_costs_the_source_nothing(self):
+        f = self.build(on_badge=True, join_ms=0)
+        starts, ends = [], []
+
+        def get_json(url):
+            if "here=" not in url:
+                return payload(row("a"))
+            starts.append(self.t)
+            self.t += 8000                                   # a timeout blocks the frame
+            ends.append(self.t)
+            raise OSError("timed out")
+
+        with mock.patch.object(skyfeed, "get_json", get_json):
+            f.locate(self.CODE, 0)
+            while len(starts) < 3:
+                f.tick(self.t)
+                self.t += 16
+        self.assertTrue(all(b - a >= skyfeed.LOCATE_EVERY_MS for a, b in zip(ends, starts[1:])), (starts, ends))
+        self.assertEqual((f.status, f._fails), ("LIVE", 0))
+
+    def test_nothing_is_asked_while_the_wifi_is_joining(self):
+        f = self.relay(self.waiting, on_badge=True, join_ms=20000)      # serve() fails on a request before the radio is up
+        f.locate(self.CODE, 0)
+        self.pump(19000)
+        self.assertEqual(self.urls, [])
+        self.pump(30000)
+        self.assertGreater(len(self.asks), 0)
 
 
 class FeedStateMachine(FeedHarness):

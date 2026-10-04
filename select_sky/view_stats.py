@@ -114,8 +114,10 @@ def _span(s):
     return "%dh %02dm" % (s // 3600, s % 3600 // 60)
 
 
-def _coords(lat, lon):
-    return "%.2f° %s   %.2f° %s" % (abs(lat), "N" if lat >= 0 else "S", abs(lon), "E" if lon >= 0 else "W")
+def _coords(lat, lon, exact):
+    """Home as degrees: to 4 decimals (about 10 m) for an exact position, to 2 for the city-level ones."""
+    form = "%.4f° %s   %.4f° %s" if exact else "%.2f° %s   %.2f° %s"
+    return form % (abs(lat), "N" if lat >= 0 else "S", abs(lon), "E" if lon >= 0 else "W")
 
 
 # ---- traffic page -------------------------------------------------------------
@@ -267,6 +269,6 @@ def _feed(app, m):
     fg, bg, dot = ui.STATUS_STYLE.get(f.status, ui.STATUS_STYLE["WAIT"])
     ui.pill(92, y0 + pitch, "SYNC" if f.busy else f.status, fg, bg, ui.LEFT, dot)
     ui.text(ui.fit(m.home_label or "---", 208), 92, y0 + 2 * pitch)
-    ui.text(_coords(m.home[0], m.home[1]), 92, y0 + 3 * pitch, TEXT_2)
+    ui.text(_coords(m.home[0], m.home[1], f.exact), 92, y0 + 3 * pitch, TEXT_2)
     for j, line in enumerate(note):
         ui.text(line, 92, y0 + 4 * pitch + j * 14, TEXT_2)

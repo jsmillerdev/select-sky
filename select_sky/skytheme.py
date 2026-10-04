@@ -42,6 +42,7 @@ F_CAPS = font.ark
 F_BODY = font.nope
 F_BOLD = font.absolute
 F_HUGE = font.ignore
+F_SMALL = font.yolk         # lowercase, 5 px a letter: host names
 try:
     F_SANS = font.load("/system/assets/fonts/MonaSans-Medium.af")
 except Exception:

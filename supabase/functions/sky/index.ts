@@ -11,12 +11,24 @@
 // Answers 502 when both feeds fail and 503 when this instance has used its one
 // upstream request per second; an answer under a minute old is sent instead, if any.
 //
-// Deploy with verify_jwt = false: the data is public and the badge sends no key.
+// It also hands a phone's position to the badge that asked for it (scan-to-locate). The badge
+// shows a QR code holding a random 6 character code; the phone page posts its GPS fix under
+// that code and the badge collects it once:
+//
+//   POST {"here": CODE, "lat": 37.62, "lon": -122.38, "acc": 12}   store it, answers {"ok":true}
+//   GET ?here=CODE                                                 {"lat","lon","acc"}, or 404 until stored
+//
+// The position waits in public.sky_handoff for 10 minutes and is deleted as it is collected.
+//
+// Deploy with verify_jwt = false: the aircraft data is public and nobody sends a key. The table
+// is not: it has no Data API access, and only this function reaches it, with its own secret key.
+
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.117.2'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Max-Age': '86400',
 }
 // The feeds ask for a contact in the User-Agent. Change it to your own project.
@@ -138,10 +150,92 @@ async function load(key: string, q: Query) {
   return entry
 }
 
+const CODE = /^[A-HJ-KM-NP-Z2-9]{6}$/
+const HANDOFF_TTL_MS = 10 * 60_000
+const MAX_BODY = 1024
+
+// Made on first use, so the aircraft endpoints never depend on the database.
+let db: SupabaseClient | undefined
+function handoff() {
+  db ??= createClient(Deno.env.get('SUPABASE_URL')!, JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')!).default)
+  return db.from('sky_handoff')
+}
+
+const bad = (message: string) => reply(JSON.stringify({ error: message }), 400)
+const inRange = (v: unknown, min: number, max: number): v is number => typeof v === 'number' && v >= min && v <= max
+
+// Expired rows go on every valid request, so the table only ever holds the last few minutes.
+async function purge() {
+  const { error } = await handoff().delete().lt('created_at', new Date(Date.now() - HANDOFF_TTL_MS).toISOString())
+  if (error) throw error
+}
+
+// The request body as text, or null when it is longer than MAX_BODY bytes. A long body is read
+// to the end but not kept: the gateway holds the reply until the whole upload has been consumed.
+async function readBody(req: Request) {
+  const chunks: Uint8Array<ArrayBuffer>[] = []
+  let size = 0
+  for await (const chunk of req.body ?? []) {
+    size += chunk.length
+    if (size <= MAX_BODY) chunks.push(chunk)
+  }
+  return size > MAX_BODY ? null : new Blob(chunks).text()
+}
+
+async function store(req: Request) {
+  const text = await readBody(req)
+  if (text === null) return bad('body too large')
+  let body
+  try {
+    body = JSON.parse(text)
+  } catch (_) {
+    return bad('body must be JSON')
+  }
+  const { here, lat, lon, acc = null } = body ?? {}
+  if (typeof here !== 'string' || !CODE.test(here)) return bad('here must be a 6 character code')
+  if (!inRange(lat, -90, 90) || !inRange(lon, -180, 180)) return bad('lat and lon must be numbers on Earth')
+  if (acc !== null && !inRange(acc, 0, 1e6)) return bad('acc must be a number of metres')
+
+  await purge()
+  // Posting again under the same code replaces the position and restarts its 10 minutes.
+  const { error } = await handoff().upsert({
+    code: here,
+    lat: +lat.toFixed(5), // about a metre
+    lon: +lon.toFixed(5),
+    acc: acc === null ? null : Math.round(acc),
+    created_at: new Date().toISOString(),
+  })
+  if (error) throw error
+  return reply('{"ok":true}')
+}
+
+async function claim(code: string) {
+  if (!CODE.test(code)) return bad('here must be a 6 character code')
+  await purge() // an expired row is gone before the claim looks for it
+  // One statement finds, deletes and returns the row, so two badges cannot both collect it.
+  const { data, error } = await handoff().delete().eq('code', code).select('lat, lon, acc')
+  if (error) throw error
+  return data.length ? reply(JSON.stringify(data[0])) : reply('{"error":"waiting"}', 404)
+}
+
+async function locate(req: Request, url: URL) {
+  let res
+  try {
+    res = req.method === 'POST' ? await store(req) : await claim(url.searchParams.get('here') ?? '')
+  } catch (e) {
+    console.error('sky_handoff', e)
+    res = reply('{"error":"storage error"}', 500)
+  }
+  res.headers.set('Cache-Control', 'no-store') // a position is collected once and never cached
+  return res
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS })
-  if (req.method !== 'GET') return reply('{"error":"GET only"}', 405)
-  const q = parse(new URL(req.url))
+  const url = new URL(req.url)
+  if (req.method === 'POST' || (req.method === 'GET' && url.searchParams.has('here'))) return locate(req, url)
+  if (req.method !== 'GET') return reply('{"error":"GET or POST only"}', 405)
+  const q = parse(url)
   if (!q) return reply('{"error":"use ?lat=&lon=&r= or ?cs="}', 400)
 
   const key = JSON.stringify(q)

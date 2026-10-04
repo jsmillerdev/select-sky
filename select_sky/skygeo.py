@@ -7,6 +7,19 @@ EARTH_NM = 3440.0
 FLAT_NM = 150.0       # beyond this the flat-earth form is too wrong to show
 POINTS = ("N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
           "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW")
+EXACT = "EXACT"      # the Home setting that selects the position saved in Setup
+
+
+def exact_pos(settings):
+    """(latitude, longitude) saved in Setup, or None when there is none or it is not a usable pair."""
+    pos = settings.get("pos")
+    if not isinstance(pos, (list, tuple)) or len(pos) != 2:
+        return None
+    try:
+        lat, lon = float(pos[0]), float(pos[1])
+    except (TypeError, ValueError):
+        return None
+    return (lat, lon) if -90 <= lat <= 90 and -180 <= lon <= 180 else None      # also rejects NaN
 
 
 def lon_scale(lat):

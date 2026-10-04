@@ -46,6 +46,8 @@ GEO_TRIES = 4              # requests to ipwho.is per Auto lookup
 TRACK_EVERY_MS = 30000
 FEED_GAP_MS = 2500         # least time between a poll and a callsign lookup
 ROUTE_RETRY_MS = 30000     # wait before asking again after a route lookup failed in transit
+LOCATE_EVERY_MS = 2500     # between asks for the position a phone is sending
+LOCATE_LIFE_MS = 300000    # a locate code is asked for this long, then it expires
 VALID_CLOCK = 1735689600      # 2025-01-01: an RTC before this was never set
 
 
@@ -128,6 +130,7 @@ class Feed:
         self.source = ""            # short name of what is answering
         self.note = "Starting"      # one line for the Setup view
         self.tz_s = None            # home's offset from UTC in seconds, when known
+        self.exact = False          # home is the position saved in Setup
         self.demo_alert = False
         self.rows_ms = None         # when rows last arrived
         self._anchor = None         # (unix seconds, ticks) from the newest payload
@@ -145,10 +148,16 @@ class Feed:
         self._geo_at = None         # when to try the IP lookup again, None when it is settled
         self._geo_left = 0
         self._chain = []            # live sources still worth trying, best first
+        self.code = ""              # the locate code a phone sends a position under; "" when there is none
+        self.code_end = 0           # when it expires
+        self._pos = None            # (lat, lon, accuracy) a phone sent, until take_pos() hands it over
+        self._next_here = 0
+        self._here_url = ""
         if config.PROXY_URL:
             base = config.PROXY_URL.replace("%", "%%")      # these strings are used as % templates
             sep = "&" if "?" in base else "?"
             self._chain.append(("edge fn", base + sep + "lat=%.4f&lon=%.4f&r=%d", base + sep + "cs=%s"))
+            self._here_url = base + sep + "here=%s"
         if ON_BADGE:
             self._chain.extend(DIRECT)
         self._live = 0 if self._chain and requests else None    # index into _chain, None for demo
@@ -181,6 +190,23 @@ class Feed:
         """Look the home position up again, such as after Setup changed it."""
         self._located = False
         self._next_poll = 0
+
+    def locate(self, code, now):
+        """Ask the relay for the position a phone sends under code, until it arrives or LOCATE_LIFE_MS pass."""
+        self.code, self.code_end, self._pos = code, now + LOCATE_LIFE_MS, None
+        self._next_here = now + LOCATE_EVERY_MS
+
+    def locate_stop(self):
+        self.code, self._pos = "", None
+
+    def locate_left(self, now):
+        """Milliseconds the code still has, 0 once it expired or was answered."""
+        return max(0, self.code_end - now) if self.code else 0
+
+    def take_pos(self):
+        """(lat, lon, accuracy in metres or None) from the phone, once; None until then."""
+        pos, self._pos = self._pos, None
+        return pos
 
     def fetch_radius(self):
         # Half as far again as the range, so the radar can show what is inbound.
@@ -223,6 +249,8 @@ class Feed:
         if self._live is None:
             self._demo_extras()
             return None
+        if self.code and self._here_url and self._next_here <= now < self.code_end:
+            return self._ask_phone
         m = self.model
         # The feeds and the relay allow one request a second, so keep clear of the polls.
         gap = min(FEED_GAP_MS, config.POLL_S * 333)
@@ -275,6 +303,7 @@ class Feed:
     def _locate(self, now):
         self._located = True
         self.tz_s = None            # an IP lookup sets it; an airport or a pinned HOME has no offset
+        self.exact = False
         self._geo_at = None         # a Setup pick cancels a pending lookup
         m, s = self.model, self.settings
         if config.HOME:
@@ -285,15 +314,23 @@ class Feed:
             city = skydata.AIRPORTS[code]
             m.set_home(city[1], city[2], code)
             return
-        d = config.DEFAULT_HOME
-        m.set_home(d[0], d[1], d[2])
+        pos = skygeo.exact_pos(s) if code == skygeo.EXACT else None      # no usable position falls back to AUTO
+        if pos:
+            m.set_home(pos[0], pos[1], "HERE")      # the lookup below names the city and finds the time zone
+            self.exact = True
+        else:
+            d = config.DEFAULT_HOME
+            m.set_home(d[0], d[1], d[2])
         self._geo_left = GEO_TRIES
         self._locate_ip(now)
 
     def _locate_ip(self, now):
-        """Find home from the IP address. A miss (Wi-Fi still joining, timeout, 429) tries again later."""
+        """Ask the IP address where home is. A miss (Wi-Fi still joining, timeout, 429) tries again later.
+
+        With an exact position the answer only names the city and sets the time zone: home stays where it is.
+        """
         self._geo_at = None
-        if not requests:
+        if not requests or not self._located:       # a Setup pick since this job was armed has the last word
             return
         online = self._online(now)
         if online:
@@ -301,9 +338,13 @@ class Feed:
             try:
                 j = get_json(GEO_URL)
                 if j.get("success"):
-                    self.model.set_home(float(j["latitude"]), float(j["longitude"]), (j.get("city") or "HERE").upper())
+                    city = (j.get("city") or "HERE").upper()
+                    if self.exact:
+                        self.model.home_label = city
+                    else:
+                        self.model.set_home(float(j["latitude"]), float(j["longitude"]), city)
+                        self._next_poll = 0     # the rows so far were for the default home
                     self._geo_left = 0
-                    self._next_poll = 0         # the rows so far were for the default home
                     self.tz_s = int((j.get("timezone") or {}).get("offset"))
             except NET_ERRORS:
                 pass
@@ -361,6 +402,23 @@ class Feed:
             self._live = None
             self._retry_live = now + RETRY_LIVE_MS
             self.note = "Demo traffic. " + why
+
+    def _ask_phone(self, now):
+        """One ask for the phone's position. A 404 means it has not arrived yet, which is the normal answer.
+
+        No miss counts against the aircraft source: the next ask comes LOCATE_EVERY_MS after this one ends.
+        """
+        began = time.ticks_ms()
+        if self.code and self._online(now):         # a cancel since this job was armed has the last word
+            try:
+                j = get_json(self._here_url % self.code)
+                lat, lon, acc = float(j["lat"]), float(j["lon"]), j.get("acc")
+                if -90 <= lat <= 90 and -180 <= lon <= 180:         # also rejects NaN
+                    self._pos = (lat, lon, None if acc is None else float(acc))
+                    self.code = ""                  # the relay deleted the row as it answered
+            except NET_ERRORS:
+                pass
+        self._next_here = now + time.ticks_diff(time.ticks_ms(), began) + LOCATE_EVERY_MS
 
     def _track(self, now):
         self._next_track = now + TRACK_EVERY_MS

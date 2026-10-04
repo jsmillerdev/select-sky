@@ -1,13 +1,18 @@
-"""SETUP: every setting as a list row, plus the callsign editor and the credits page.
+"""SETUP: every setting as a list row, plus the callsign and position editors, the locate screen and the credits page.
 
 UP and DOWN pick a row, B changes it. Changes apply at once and are saved.
-Track callsign opens a modal editor that borrows A and C; About opens the credits.
+Track callsign and Exact position open modal screens that borrow A and C; About opens the credits.
+With a relay set, Exact position shows a QR code: the phone that scans it sends its position through the relay.
 """
+
+import random
 
 from badgeware import *
 
 import config
 import skydata
+import skygeo
+import skyqr
 import skyui as ui
 from skymodel import RANGES
 from skytheme import *
@@ -27,17 +32,19 @@ SCROLL_MARGIN = 1               # rows kept between the pick and the edge, so th
 BRIGHTS = (20, 40, 60, 85, 100)
 CYCLES = (5, 7, 10, 15)
 HOMES = [""] + sorted(skydata.AIRPORTS)         # "" is AUTO
+HOMES_EXACT = ["", skygeo.EXACT] + HOMES[1:]    # once a position is saved, EXACT comes right after AUTO
 
-ROWS = (("range", "Range"), ("units", "Units"), ("home", "Home"), ("track", "Track callsign"),
-        ("bright", "Brightness"), ("auto_dim", "Auto dim"), ("leds", "Rear lights"),
+ROWS = (("range", "Range"), ("units", "Units"), ("home", "Home"), ("pos", "Exact position"),
+        ("track", "Track callsign"), ("bright", "Brightness"), ("auto_dim", "Auto dim"), ("leds", "Rear lights"),
         ("ground", "Ground traffic"), ("cycle", "Cycle"), ("alert", "Test alert"),
         ("source", "Data source"), ("about", "About"))
 SWITCHES = ("auto_dim", "leds", "ground", "alert")
-OPENERS = ("track", "about")                    # rows that open a page instead of changing in place
+OPENERS = ("pos", "track", "about")             # rows that open a page instead of changing in place
 HELP = {
     "range": "How far out an aircraft counts as nearby",
     "units": "Imperial: ft kt nm. Metric: m km/h km",
-    "home": "Auto finds you by IP, or pick an airport",
+    "home": "Auto uses IP, Exact your spot, or an airport",
+    "pos": "Center the radar on you. No GPS: enter it once",
     "track": "Follow one callsign anywhere. B edits",
     "bright": "Backlight level, applied at once",
     "auto_dim": "Dim the backlight when the room is dark",
@@ -54,6 +61,23 @@ SLOT_W, SLOT_Y, SLOT_H = 34, 60, 56
 # Eight slots spread over the 8 px margins; the gaps alternate 5 and 4 px.
 SLOT_XS = tuple(8 + (i * (304 - SLOT_W) + 3) // 7 for i in range(SLOTS))
 
+# The position editor: two lines of slots, latitude then longitude. Each line starts with a hemisphere
+# (0 is N or E, 1 is S or W), then whole degrees and four decimals as digits.
+LAT_SLOTS, POS_SLOTS = 7, 15
+HEMIS = (0, LAT_SLOTS)                          # the hemisphere slot of each line
+POS_X, POS_PITCH, POINT_GAP = 12, 36, 12        # left edge, column pitch, extra room for the decimal point
+POS_W, POS_H = 32, 44
+POS_YS = (44, 96)                               # top of the latitude and longitude lines
+
+# The locate screen: the QR code on a white panel at the left, a short column of text beside it.
+CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"  # no 0 O 1 I L, which look alike on a screen
+CODE_LEN = 6
+PANEL_MAX = 192                                 # the content area is 200 px tall: 4 px of room above and below
+QUIET = 2                                       # modules of white round the code
+PAPER = rgb(255, 255, 255)
+PANEL_X, COLUMN_GAP = 8, 12                     # the panel's left edge, and the room between it and the text
+GOT_MS = 900                                    # "Got it" stays up this long, then the screen closes
+
 
 class _State:
     """Everything the view remembers between frames."""
@@ -65,7 +89,10 @@ class _State:
         self.last = -100000     # app.now of the previous frame
         self.about = False
         self.edit = None        # list of SLOTS characters while the callsign editor is open
-        self.pos = 0
+        self.coord = None       # list of POS_SLOTS numbers while the position editor is open
+        self.qr = None          # (image of the code, margin in px) while the locate screen is open
+        self.got = None         # app.now when a phone's position arrived on the locate screen
+        self.pos = 0            # the slot an editor has picked
         self.flip = {}          # switch row -> app.now of its last change
 
 
@@ -90,6 +117,11 @@ def _demo(app):
     return app.feed.status == "DEMO"
 
 
+def _relay():
+    """The phone flow needs a relay a phone can reach."""
+    return config.PROXY_URL.startswith("https://")
+
+
 def _home_code(app):
     """The airport code Home shows: the pick still waiting to be applied, else the saved one. "" is AUTO."""
     return (app.settings.get("home") or "") if app.home_pick is None else app.home_pick
@@ -104,7 +136,7 @@ def _flag(app, key):
 
 def _locked(app, key):
     """Rows B cannot change: the feed's name, a HOME pinned in config.py, and the demo-only alert."""
-    return key == "source" or (key == "home" and bool(config.HOME)) or (key == "alert" and not _demo(app))
+    return key == "source" or (key in ("home", "pos") and bool(config.HOME)) or (key == "alert" and not _demo(app))
 
 
 def _helptext(app, key):
@@ -115,11 +147,12 @@ def _helptext(app, key):
             return "Only works with demo traffic, not a live feed"
         if app.feed.demo_alert:
             return "Still squawking 7700. B stops it" if app.model.acked else "Squawk starts on the next update. B cancels"
-    if key == "home":
-        if config.HOME:
-            return "Pinned by HOME in config.py"
-        if app.home_pick is not None:
-            return "Moves home when you stop pressing B"
+    if key in ("home", "pos") and config.HOME:
+        return "Pinned by HOME in config.py"
+    if key == "pos" and _relay():
+        return "Center the radar on you. Scan with your phone"
+    if key == "home" and app.home_pick is not None:
+        return "Moves home when you stop pressing B"
     return HELP[key]
 
 
@@ -127,6 +160,8 @@ def _home_text(app):
     if config.HOME:
         return "Fixed · " + (config.HOME[2] if len(config.HOME) > 2 else "HOME")
     code = _home_code(app)
+    if code == skygeo.EXACT and skygeo.exact_pos(app.settings):
+        return "Exact"
     if code in skydata.AIRPORTS:
         return "%s · %s" % (code, skydata.AIRPORTS[code][0])
     label = app.model.home_label if app.home_pick is None else ""     # AUTO is not resolved until it is applied
@@ -145,6 +180,11 @@ def _value_text(app, key):
         return "m km/h km" if s["metric"] else "ft kt nm"
     if key == "home":
         return _home_text(app)
+    if key == "pos":
+        pos = skygeo.exact_pos(s)
+        if not pos:
+            return "Not set"
+        return "%.4f %s %.4f %s" % (abs(pos[0]), "N" if pos[0] >= 0 else "S", abs(pos[1]), "E" if pos[1] >= 0 else "W")
     if key == "track":
         return s["track"] or "None"
     if key == "bright":
@@ -175,10 +215,12 @@ def _value_text(app, key):
 def _b_label(app, key):
     if key == "about":
         return "OPEN"
-    if key == "track":
-        return "EDIT"
     if _locked(app, key):
         return None
+    if key == "pos" and _relay():
+        return "LOCATE"
+    if key in ("track", "pos"):
+        return "EDIT"
     return "TOGGLE" if key in SWITCHES else "CYCLE"
 
 
@@ -191,7 +233,10 @@ def _change(app, key):
     if key == "range":
         app.set_range(_next(RANGES, s["range"]))
     elif key == "home":
-        app.set_home(_next(HOMES, _home_code(app)))
+        app.set_home(_next(HOMES_EXACT if skygeo.exact_pos(s) else HOMES, _home_code(app)))
+    elif key == "pos":
+        if not (_relay() and _open_locate(app)):
+            _open_editor(app)
     elif key == "track":
         cs = (s["track"] or "").upper()[:SLOTS]
         st.edit = list(cs + " " * (SLOTS - len(cs)))
@@ -231,6 +276,80 @@ def _finish_edit(app):
     app.toast("Tracking " + cs if cs else "Tracking stopped" if old else "No callsign set")
 
 
+def _open_editor(app):
+    lat, lon = skygeo.exact_pos(app.settings) or app.model.home     # nudge the saved position, else the one in use
+    st.coord = _slots(lat, lon)
+    st.pos = 0
+
+
+def _qr_image(text):
+    """The code for text as an off-screen image, dark on white, a whole number of pixels a module, and the margin
+    of white the panel adds round it. Raises ValueError when text is too long for a code."""
+    size, rows = skyqr.matrix(text)
+    px = PANEL_MAX // (size + 2 * QUIET)
+    img = image(size * px, size * px)
+    img.pen = PAPER
+    img.clear()
+    img.pen = BG_DEEP
+    for y in range(size):
+        for x in range(size):
+            if rows[y][x >> 3] >> (7 - (x & 7)) & 1:
+                img.rectangle(x * px, y * px, px, px)
+    return img, QUIET * px
+
+
+def _open_locate(app):
+    """Show a fresh code and start asking the relay for the position a phone sends under it.
+
+    False, with a toast, when the relay URL is too long to fit in a code.
+    """
+    code = "".join(random.choice(CODE_CHARS) for _ in range(CODE_LEN))
+    try:
+        st.qr = _qr_image("%s#%s@%s" % (config.LOCATE_PAGE, code, config.PROXY_URL[8:]))
+    except ValueError:
+        app.toast("Relay URL too long for a QR code")
+        return False
+    st.got = None
+    app.feed.locate(code, app.now)
+    app.hw.full_light(True)             # a phone reads a bright screen from further away
+    return True
+
+
+def _close_locate(app):
+    st.qr = st.got = None
+    app.feed.locate_stop()
+    app.hw.full_light(False)
+
+
+def _slots(lat, lon):
+    """Editor slots for a position: per line a hemisphere flag, then the digits of the value in ten-thousandths."""
+    out = []
+    for v, whole in ((lat, 2), (lon, 3)):
+        out.append(1 if v < 0 else 0)
+        out.extend(int(c) for c in str(int(abs(v) * 10000 + 0.5) + 10 ** (whole + 4))[1:])     # zero-padded
+    return out
+
+
+def _units(slots):
+    """One line of slots as signed ten-thousandths of a degree: whole numbers, so nothing rounds before the divide."""
+    n = 0
+    for d in slots[1:]:
+        n = n * 10 + d
+    return -n if slots[0] else n
+
+
+def _finish_coord(app):
+    lat, lon = _units(st.coord[:LAT_SLOTS]), _units(st.coord[LAT_SLOTS:])
+    if abs(lat) > 90 * 10000:
+        app.toast("Latitude is 90 at most")
+    elif abs(lon) > 180 * 10000:
+        app.toast("Longitude is 180 at most")
+    else:
+        st.coord = None
+        app.set_pos(lat / 10000.0, lon / 10000.0)       # one conversion of a whole number, which a float holds exactly
+        app.toast("Position set")
+
+
 # ---- input ----------------------------------------------------------------
 
 def _list_input(app):
@@ -250,6 +369,32 @@ def _list_input(app):
         _change(app, key)
 
 
+def _expired(app):
+    """The code on the locate screen ran out unanswered."""
+    return st.got is None and not app.feed.locate_left(app.now)
+
+
+def _locate_input(app):
+    """A cancels, C types the position instead, B makes a new code once the old one expired."""
+    if badge.pressed(BUTTON_A):
+        _close_locate(app)
+        return
+    if badge.pressed(BUTTON_C):
+        _close_locate(app)
+        _open_editor(app)
+        return
+    if badge.pressed(BUTTON_B) and _expired(app):
+        _open_locate(app)
+    pos = app.feed.take_pos()
+    if pos:
+        app.set_pos(round(pos[0], 4), round(pos[1], 4))         # four decimals, as the editor does
+        app.toast("Position set from phone")
+        app.hw.pulse(app.now)
+        st.got = app.now
+    elif st.got is not None and app.now - st.got >= GOT_MS:
+        _close_locate(app)
+
+
 def _edit_input(app):
     for button, d in ((BUTTON_UP, 1), (BUTTON_DOWN, -1)):
         if app.repeat(button):
@@ -264,6 +409,21 @@ def _edit_input(app):
         st.pos = min(SLOTS - 1, st.pos + 1)
     elif badge.pressed(BUTTON_B):
         _finish_edit(app)
+
+
+def _coord_input(app):
+    for button, d in ((BUTTON_UP, 1), (BUTTON_DOWN, -1)):
+        if app.repeat(button):
+            st.coord[st.pos] = (st.coord[st.pos] + d) % (2 if st.pos in HEMIS else 10)
+    if badge.pressed(BUTTON_A):
+        if st.pos == 0:
+            st.coord = None
+        else:
+            st.pos -= 1
+    elif badge.pressed(BUTTON_C):
+        st.pos = min(POS_SLOTS - 1, st.pos + 1)
+    elif badge.pressed(BUTTON_B):
+        _finish_coord(app)
 
 
 # ---- drawing: the list ----------------------------------------------------
@@ -283,7 +443,7 @@ def _row(app, i, y, picked):
     ui.text(label, LABEL_X, y + 5, TEXT if picked else TEXT_2)
     room = VALUE_R - (LABEL_X + ui.width(label) + 14)        # space left for the value
     x = VALUE_R
-    if key in OPENERS:
+    if key in OPENERS and not _locked(app, key):
         ui.chevron(x - 4, y + 12, 4, TEXT_2 if picked else TEXT_4)
         x -= 14
         room -= 14
@@ -381,6 +541,63 @@ def _draw_edit():
     _strip("Tracking " + cs + " anywhere" if cs else "Blank saves as none and stops tracking")
 
 
+def _draw_coord():
+    ui.caps("update settings set home =", 8, 28, TEXT_4)
+    ui.caps("latitude" if st.pos < LAT_SLOTS else "longitude", 312, 28, TEXT_3, ui.RIGHT)
+    for i, v in enumerate(st.coord):
+        # Latitude sits one column in, so the decimal points of both lines meet.
+        col = i + 1 if i < LAT_SLOTS else i - LAT_SLOTS
+        x = POS_X + col * POS_PITCH + (POINT_GAP if col >= 4 else 0)
+        y = POS_YS[i >= LAT_SLOTS]
+        active = i == st.pos
+        ui.panel(x, y, POS_W, POS_H, GREEN if active else RAISED, 6)
+        ch = "NS"[v] if i == 0 else "EW"[v] if i == LAT_SLOTS else str(v)
+        ui.sans(ch, x + POS_W / 2, y + 4, 28, BG_DEEP if active else TEXT, ui.CENTER_X)
+    for y in POS_YS:
+        ui.disc(160, y + 31, 2.5, TEXT_2)       # on the digits' baseline
+    change = "Switch N or S" if st.pos == 0 else "Switch E or W" if st.pos == LAT_SLOTS else "Change digit"
+    _legend(8, 148, None, change)
+    _legend(168, 148, "B", "Save")
+    _legend(8, 170, "A", "Left, cancel at start")
+    _legend(168, 170, "C", "Right")
+    _strip("Sets home. Latitude to 90, longitude to 180")
+
+
+# ---- drawing: the locate screen ---------------------------------------------
+
+def _draw_locate(app):
+    img, pad = st.qr
+    side = img.width + 2 * pad
+    y = ui.TOP + (ui.BOTTOM - ui.TOP - side) // 2
+    dead = _expired(app)                # an expired code is hidden: a phone that scanned it would send to nobody
+    ui.panel(PANEL_X, y, side, side, RAISED if dead else PAPER, 6)
+    if not dead:
+        screen.blit(img, PANEL_X + pad, y + pad)
+
+    x = PANEL_X + side + COLUMN_GAP
+    ui.sans("Scan with", x, y, 17)
+    ui.sans("your phone", x, y + 19, 17)
+    ui.caps("1 scan", x, y + 52, TEXT_3)
+    ui.caps("2 allow location", x, y + 65, TEXT_3)
+
+    left = app.feed.locate_left(app.now)
+    if st.got is not None:
+        lines, ink, col, phase = ("Got it",), GREEN_HI, GREEN, 1
+    elif left:
+        lines, ink, col, phase = ("Waiting for", "your phone"), TEXT_2, GREEN, app.now % 1800 / 1800.0
+    else:
+        lines, ink, col, phase = ("Code expired",), AMBER, AMBER, 1
+    ui.ping(x + 3, y + 94, phase, col)
+    for i, line in enumerate(lines):
+        ui.text(line, x + 14, y + 88 + 13 * i, ink)
+    if left:
+        secs = (left + 999) // 1000
+        ui.caps("%d:%02d left" % (secs // 60, secs % 60), x + 14, y + 117, TEXT_3)
+    name, dot, rest = config.PROXY_URL[8:].split("/")[0].partition(".")        # a long name folds at its first dot
+    ui.text(ui.fit(name, 312 - x, F_SMALL), x, y + side - 24, TEXT_4, F_SMALL)
+    ui.text(ui.fit(dot + rest, 312 - x, F_SMALL), x, y + side - 12, TEXT_4, F_SMALL)
+
+
 # ---- drawing: credits -----------------------------------------------------
 
 CREDITS = (("License", "Open source (MIT)", TEXT),
@@ -407,25 +624,38 @@ def _draw_about():
 
 def update(app):
     dt = min(100, max(1, app.now - st.last))
-    if app.now - st.last > 300:
-        st.about = False                # the view was left and is back
+    if app.view_ms > st.last:           # the view was left and is back; a slow request is not that
+        st.about = False
+        if st.qr is not None:
+            _close_locate(app)
     st.last = app.now
 
     if st.about:
         if badge.pressed(BUTTON_B) or badge.pressed(BUTTON_UP) or badge.pressed(BUTTON_DOWN):
             st.about = False
+    elif st.qr is not None:
+        _locate_input(app)
     elif st.edit is not None:
         _edit_input(app)
+    elif st.coord is not None:
+        _coord_input(app)
     else:
         _list_input(app)
-    app.capture = st.edit is not None   # A and C belong to the editor only while it is open
+    editing = st.edit is not None or st.coord is not None
+    app.capture = editing or st.qr is not None      # A and C belong to an editor or the locate screen only while it is open
 
     # Chrome goes last: rows scrolling past the edges would otherwise draw over it.
     if st.about:
         _draw_about()
         hints = ("BACK", None)
-    elif st.edit is not None:
-        _draw_edit()
+    elif st.qr is not None:
+        _draw_locate(app)
+        hints = ("NEW CODE" if _expired(app) else None, None, "cancel", "type")
+    elif editing:
+        if st.edit is not None:
+            _draw_edit()
+        else:
+            _draw_coord()
         hints = ("SAVE", "CHAR", "cancel" if st.pos == 0 else "left", "right")     # A and C move the slot
     else:
         _draw_list(app, dt)

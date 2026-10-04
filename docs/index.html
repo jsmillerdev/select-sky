@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#101410">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src https:; base-uri 'none'; form-action 'none'">
+<meta name="description" content="Pairs your phone with a Select Sky badge so the badge knows where you are.">
+<title>Select Sky</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%201024%201024'%3E%3Crect%20width='1024'%20height='1024'%20rx='226'%20fill='%2308271B'/%3E%3Cpath%20d='M830.5%20193.5%20L792.3%20314.4%20L668.2%20438.5%20L735.0%20798.1%20L684.1%20849.0%20L540.9%20565.8%20L432.7%20661.3%20L442.3%20798.1%20L410.5%20829.9%20L327.7%20696.3%20L194.1%20613.5%20L225.9%20581.7%20L362.7%20591.3%20L458.2%20483.1%20L175.0%20339.9%20L225.9%20289.0%20L585.5%20355.8%20L709.6%20231.7%20Z'%20fill='%233ECF8E'%20stroke='%233ECF8E'%20stroke-width='12'%20stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+:root{color-scheme:dark;--bg:#101410;--panel:#181818;--text:#EFEFEF;--text2:#BDBEBD;--text3:#8C8B8C;--green:#3ECF8E;--hi:#85E0BA;--mid:#1D724C;--ink:#08271B;--tint:#002918;--amber:#F2AF48;--amber-tint:#341C00;
+--sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html{background:var(--bg);-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;gap:48px;
+padding:max(28px,env(safe-area-inset-top)) max(24px,env(safe-area-inset-right)) max(28px,env(safe-area-inset-bottom)) max(24px,env(safe-area-inset-left));
+background:var(--bg);color:var(--text);font:400 17px/1.55 var(--sans)}
+body>*{width:100%;max-width:30rem;margin-inline:auto}
+header{display:flex;align-items:center;gap:14px}
+.mark{width:48px;height:48px;flex:none}
+header span{display:block;font-size:20px;font-weight:600;line-height:1.2;letter-spacing:-.02em}
+header code{font:500 14px var(--mono);color:var(--green)}
+main{flex:1;display:flex;flex-direction:column;gap:32px}
+#msg{padding-top:clamp(0px,6vh,56px)}
+h1{margin:0 0 16px;font-size:clamp(28px,8.5vw,36px);font-weight:600;line-height:1.15;letter-spacing:-.025em}
+p{margin:0 0 16px;color:var(--text2)}
+b{font:500 .92em var(--mono);color:var(--hi);overflow-wrap:anywhere}
+a{color:var(--green);font-family:var(--mono);font-size:.95em;text-underline-offset:4px;overflow-wrap:anywhere}
+.chip{display:inline-block;margin-bottom:20px;padding:4px 12px;border-radius:99px;font:500 13px/1.5 var(--mono);letter-spacing:.16em;text-transform:uppercase}
+.ok{background:var(--tint);color:var(--hi)}
+.warn{background:var(--amber-tint);color:var(--amber)}
+.fix{margin:24px 0;padding:20px;border-radius:16px;background:var(--panel);font-family:var(--mono)}
+.fix span{display:block;font-size:20px;font-weight:500;color:var(--text)}
+.fix small{display:block;margin-top:4px;font-size:14px;color:var(--text3)}
+button{margin-top:auto;width:100%;min-height:64px;padding:0 24px;border:0;border-radius:16px;background:var(--green);color:var(--ink);font:600 19px var(--sans);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+button[aria-disabled=true]{background:var(--mid);color:var(--text);cursor:default}
+.busy::before{content:"";display:inline-block;width:10px;height:10px;margin-right:12px;border-radius:50%;background:var(--hi);animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.busy::before{animation:none}}
+:focus-visible{outline:3px solid var(--hi);outline-offset:3px}
+footer{font-size:14px;color:var(--text3)}
+</style>
+</head>
+<body>
+<header>
+<svg class="mark" viewBox="0 0 1024 1024" aria-hidden="true"><rect width="1024" height="1024" rx="226" fill="#08271B"/><path d="M830.5 193.5 L792.3 314.4 L668.2 438.5 L735.0 798.1 L684.1 849.0 L540.9 565.8 L432.7 661.3 L442.3 798.1 L410.5 829.9 L327.7 696.3 L194.1 613.5 L225.9 581.7 L362.7 591.3 L458.2 483.1 L175.0 339.9 L225.9 289.0 L585.5 355.8 L709.6 231.7 Z" fill="#3ECF8E" stroke="#3ECF8E" stroke-width="12" stroke-linejoin="round"/></svg>
+<div><span>Select Sky</span><code>select * from sky;</code></div>
+</header>
+<main>
+<div id="msg" aria-live="polite" aria-atomic="true"></div>
+<button id="go" type="button" hidden></button>
+</main>
+<footer>Unofficial. Open source (MIT).</footer>
+<script>
+"use strict";
+const CODE = /^[A-HJ-KM-NP-Z2-9]{6}$/;
+const msg = document.getElementById("msg"), go = document.getElementById("go");
+const node = (tag, ...kids) => { const e = document.createElement(tag); e.append(...kids); return e; };
+const p = (...kids) => node("p", ...kids);
+let link;
+
+// "#CODE@relay.host/path" -> {code, url, host}, or null. Everything is shown with textContent.
+function parseLink(hash) {
+  const at = hash.indexOf("@"), code = hash.slice(1, at);
+  if (at < 0 || !CODE.test(code)) return null;
+  try {
+    const u = new URL("https://" + hash.slice(at + 1));
+    return /^[\w.-]+$/.test(u.hostname) && !u.username && !u.password ? { code, url: u.href, host: u.host } : null;
+  } catch { return null; }
+}
+
+function show(title, parts, { chip, btn, busy } = {}) {
+  const tag = chip && Object.assign(node("p", chip[0]), { className: "chip " + chip[1] });
+  msg.replaceChildren(...[tag, node("h1", title), ...parts].filter(Boolean));
+  go.hidden = !btn;
+  go.textContent = btn || "";
+  go.className = busy ? "busy" : "";
+  go.setAttribute("aria-disabled", !!busy);
+}
+const fail = (title, ...text) => show(title, [p(...text)], { chip: ["Problem", "warn"], btn: "Try again" });
+
+const GEO = {
+  1: ["Location is blocked", "Your browser won't share your location with this page. Allow it in the site settings (on iPhone: Settings, Privacy & Security, Location Services, then your browser), and tap Try again."],
+  2: ["Position unavailable", "Your phone couldn't work out where it is. Check that Location Services is on, move near a window or outside, and tap Try again."],
+  3: ["Timed out", "Your phone took longer than 20 seconds to find its position. Move near a window or outside, and tap Try again."],
+};
+
+async function share() {
+  if (go.getAttribute("aria-disabled") === "true") return;
+  show("Finding your position", [p("This can take up to 20 seconds. Keep this page open.")], { btn: "Locating…", busy: true });
+  let c;
+  try {
+    ({ coords: c } = await new Promise((ok, no) =>
+      navigator.geolocation.getCurrentPosition(ok, no, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 })));
+  } catch (e) {
+    return fail(...GEO[e.code] || GEO[2]);
+  }
+  show("Sending to your badge", [p("Your position is on its way to ", node("b", link.host), ".")], { btn: "Sending…", busy: true });
+  const acc = Number.isFinite(c.accuracy) ? Math.round(c.accuracy) : undefined;
+  let res;
+  try {
+    res = await fetch(link.url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ here: link.code, lat: c.latitude, lon: c.longitude, acc }),
+      credentials: "omit",
+      referrerPolicy: "no-referrer",
+      signal: AbortSignal.timeout?.(15000),
+    });
+  } catch {
+    return fail("Can't reach the relay", "Your phone couldn't connect to ", node("b", link.host), ". Check your connection and tap Try again.");
+  }
+  if (res.status === 400) return fail("This link isn't valid anymore", "The relay didn't accept the code, so it may have expired. On your badge, open the locate screen again and scan the new QR code.");
+  if (!res.ok) return fail("The relay had a problem", "It answered with HTTP " + res.status + ". Wait a moment and tap Try again.");
+  const where = node("div", node("span", c.latitude.toFixed(5) + ", " + c.longitude.toFixed(5)));
+  where.className = "fix";
+  if (acc !== undefined) where.append(node("small", "Accurate to about " + acc + " m"));
+  show("Sent. Look at your badge.", [where, p("You can close this page.")], { chip: ["Sent", "ok"] });
+}
+
+const hash = location.hash;
+link = parseLink(hash);
+if (hash.length < 2) {
+  show("A flight wall for the Supabase SELECT badge", [
+    p("Select Sky shows the aircraft near you, live, on your badge."),
+    p("This page pairs a phone with a badge. On your badge, open the locate screen and scan its QR code."),
+    p(Object.assign(node("a", "github.com/jsmillerdev/select-sky"), { href: "https://github.com/jsmillerdev/select-sky", rel: "noopener" })),
+  ]);
+} else if (!link) {
+  show("This link doesn't work", [p("Part of its address is missing or damaged. On your badge, open the locate screen and scan its QR code again.")], { chip: ["Problem", "warn"] });
+} else {
+  show("Share your location with your badge", [p("Your position goes to ", node("b", link.host), ", then to your badge. The relay deletes it when the badge collects it.")], { btn: "Share my location" });
+  go.onclick = share;
+}
+// A second scan can change only the hash, which would leave this page holding the old code.
+addEventListener("hashchange", () => location.reload());
+</script>
+</body>
+</html>
