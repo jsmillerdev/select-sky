@@ -15,7 +15,8 @@
 // shows a QR code holding a random 6 character code; the phone page posts its GPS fix under
 // that code and the badge collects it once:
 //
-//   POST {"here": CODE, "lat": 37.62, "lon": -122.38, "acc": 12}   store it, answers {"ok":true}
+//   POST {"here": CODE, "lat": 37.62, "lon": -122.38, "acc": 12}   store it, answers {"ok":true},
+//                                                                  or 503 while 500 positions are waiting
 //   GET ?here=CODE                                                 {"lat","lon","acc"}, or 404 until stored
 //
 // The position waits in public.sky_handoff for 10 minutes and is deleted as it is collected.
@@ -153,6 +154,7 @@ async function load(key: string, q: Query) {
 const CODE = /^[A-HJ-KM-NP-Z2-9]{6}$/
 const HANDOFF_TTL_MS = 10 * 60_000
 const MAX_BODY = 1024
+const MAX_WAITING = 500 // positions parked at once: a flood of made-up codes cannot fill the database
 
 // Made on first use, so the aircraft endpoints never depend on the database.
 let db: SupabaseClient | undefined
@@ -197,6 +199,9 @@ async function store(req: Request) {
   if (acc !== null && !inRange(acc, 0, 1e6)) return bad('acc must be a number of metres')
 
   await purge()
+  const { count, error: full } = await handoff().select('*', { count: 'exact', head: true })
+  if (full) throw full
+  if (count! >= MAX_WAITING) return reply('{"error":"busy"}', 503, { 'Retry-After': '60' })
   // Posting again under the same code replaces the position and restarts its 10 minutes.
   const { error } = await handoff().upsert({
     code: here,

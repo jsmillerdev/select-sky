@@ -90,7 +90,8 @@ The chip in the top bar reads **DEMO** or **LIVE**.
 ### On a badge
 
 1. Plug in the badge with a USB data cable and double-press RESET.
-2. Copy the `select_sky` folder into the `apps` folder on the TUFTY drive.
+2. Download and unzip [`dist/select_sky.zip`](dist/select_sky.zip), then copy the
+   `select_sky` folder into the `apps` folder on the TUFTY drive.
 3. If the badge is not on Wi-Fi yet, create `secrets.py` at the top of the
    drive:
 
@@ -179,7 +180,7 @@ phone flow and calling the feeds without a relay.
   them, and keep the attribution.
 - **Routes:** the VRS standing data that adsb.lol hosts. A route belongs to a
   callsign, not to today's flight, so it can be wrong.
-- **Starter kit:** `AGENTS.md`, `.agents/`, `scripts/` and `my_badge_app/` come
+- **Starter kit:** `AGENTS.md`, `.agents/` and `scripts/` come
   from badge.select. The license below does not cover them.
 
 ## License

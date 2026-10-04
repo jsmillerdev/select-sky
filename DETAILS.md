@@ -297,9 +297,9 @@ Not verified on hardware:
 
 ## Starter kit files
 
-The rest of this workspace is the badge.select starter kit. `my_badge_app/` is
-its sample app, `scripts/package.py` builds the ZIP, and `AGENTS.md` and
-`.agents/` guide coding agents. Those files come from badge.select, and the
+The rest of this workspace is the badge.select starter kit.
+`scripts/package.py` builds the ZIP, and `AGENTS.md` and `.agents/` guide
+coding agents. Those files come from badge.select, and the
 MIT license in this repo does not cover them.
 
 Logos, screenshots and social images are in [`branding/`](branding/README.md).
