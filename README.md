@@ -31,6 +31,34 @@ Unofficial. Not for navigation.
 When an aircraft sends an emergency transponder code (7500, 7600 or 7700), an
 alert fills the screen and the rear lights flash until you acknowledge it.
 
+### Every screen
+
+<table>
+<tr>
+  <td align="center"><img src="branding/screens/wall.png" width="260" alt="Wall view: flight UAL1506, San Francisco to Los Angeles, with altitude, speed, track and vertical speed"><br><sub>Wall</sub></td>
+  <td align="center"><img src="branding/screens/radar.png" width="260" alt="Radar view: a sweep over aircraft colored by altitude, with the selected flight's details"><br><sub>Radar</sub></td>
+  <td align="center"><img src="branding/screens/board.png" width="260" alt="Board view: a table of aircraft sorted by altitude"><br><sub>Board</sub></td>
+</tr>
+<tr>
+  <td align="center"><img src="branding/screens/track.png" width="260" alt="Track view: where to look for one flight, its altitude and speed history, and its route"><br><sub>Track</sub></td>
+  <td align="center"><img src="branding/screens/stats.png" width="260" alt="Stats view: counts, an altitude histogram, records and top airlines"><br><sub>Stats</sub></td>
+  <td align="center"><img src="branding/screens/setup.png" width="260" alt="Setup view: a list of settings"><br><sub>Setup</sub></td>
+</tr>
+<tr>
+  <td align="center"><img src="branding/screens/locate.png" width="260" alt="Setup showing a QR code to scan with a phone"><br><sub>Exact position: scan with a phone</sub></td>
+  <td align="center"><img src="branding/screens/position.png" width="260" alt="Position editor: latitude and longitude, one digit per slot"><br><sub>Exact position: type it</sub></td>
+  <td align="center"><img src="branding/screens/callsign.png" width="260" alt="Callsign editor: one character per slot"><br><sub>Track callsign</sub></td>
+</tr>
+<tr>
+  <td align="center"><img src="branding/screens/alert.png" width="260" alt="Squawk alert: code 7700, general emergency, with the aircraft's distance and altitude"><br><sub>Squawk alert</sub></td>
+  <td align="center"><img src="branding/screens/about.png" width="260" alt="About page: license, status and data sources"><br><sub>About</sub></td>
+  <td align="center"><img src="branding/screens/splash.png" width="260" alt="Startup screen: the Supabase bolt above the query select * from sky;"><br><sub>Startup</sub></td>
+</tr>
+</table>
+
+Captures from the badge.select simulator. Each view shows live traffic near San
+Francisco. The alert is the app's test alert, on demo traffic.
+
 <p align="center">
   <img src="branding/badge/device-radar.png" width="32%" alt="Radar view on the badge">
   <img src="branding/badge/device-board.png" width="32%" alt="Board view on the badge">

@@ -221,7 +221,7 @@ Two kinds of image carry the brand: screens and badge renders. Both come from th
 - `badge/front-wall.png` is the simulator's flat 2D view, scaled so its screen lands on an exact 3x. The screen pixels are the Wall capture at 3x.
 - The social cards carry "simulator render" in their fine print. Keep that wording when you adapt a card.
 
-Known mismatch: the stills show flight ASA923 at 14:12Z, and the hero renders and the radar loop show SKW3440 at 14:16Z. They come from different capture moments.
+Known mismatch: the stills show flight UAL1506 at 20:02Z, and the hero renders and the radar loop show SKW3440 at 14:16Z. They come from different capture moments.
 
 ## Motion
 
@@ -393,15 +393,19 @@ Paths are relative to this folder. Sizes are pixels (viewBox for SVG) and file w
 | `logo/lockup-tagline-light.png` | 960 × 368 · 22 KB | Lockup with tagline for light pages (2x) |
 | `logo/lockup-tagline-light.svg` | viewBox 856.48 × 328.32 · 1 KB | Wordmark with tagline, for light. Live text |
 | `logo/logo-sheet.png` | 2000 × 1200 · 228 KB | Logo system overview: sizes, clear space, do not |
-| `screens/alert.png` | 1280 × 960 · 16 KB | Squawk alert capture; caption it as the alert screen |
-| `screens/all-views.png` | 2400 × 1400 · 102 KB | 3 × 2 grid of the six views |
+| `screens/about.png` | 1280 × 960 · 10 KB | About page capture |
+| `screens/alert.png` | 1280 × 960 · 9 KB | Squawk alert capture; caption it as the alert screen |
+| `screens/all-views.png` | 2400 × 1400 · 55 KB | 3 × 2 grid of the six views |
 | `screens/board.png` | 1280 × 960 · 10 KB | Board view capture |
-| `screens/radar.png` | 1280 × 960 · 32 KB | Radar view capture |
-| `screens/setup.png` | 1280 × 960 · 7 KB | Setup view capture |
-| `screens/splash.png` | 1280 × 960 · 9 KB | Boot splash capture; shows the in-app Supabase bolt |
+| `screens/callsign.png` | 1280 × 960 · 8 KB | Callsign editor capture |
+| `screens/locate.png` | 1280 × 960 · 10 KB | Scan-to-locate capture; the QR code holds a placeholder relay |
+| `screens/position.png` | 1280 × 960 · 12 KB | Position editor capture |
+| `screens/radar.png` | 1280 × 960 · 21 KB | Radar view capture |
+| `screens/setup.png` | 1280 × 960 · 6 KB | Setup view capture |
+| `screens/splash.png` | 1280 × 960 · 7 KB | Boot splash capture; shows the in-app Supabase bolt |
 | `screens/stats.png` | 1280 × 960 · 9 KB | Stats view capture |
-| `screens/track.png` | 1280 × 960 · 28 KB | Track view capture |
-| `screens/wall.png` | 1280 × 960 · 23 KB | Wall view capture |
+| `screens/track.png` | 1280 × 960 · 15 KB | Track view capture |
+| `screens/wall.png` | 1280 × 960 · 13 KB | Wall view capture |
 | `badge/device-board.png` | 1333 × 971 · 328 KB | Tight device crop, Board view |
 | `badge/device-radar.png` | 1333 × 971 · 347 KB | Tight device crop, Radar view |
 | `badge/device-setup.png` | 1333 × 971 · 288 KB | Tight device crop, Setup view |
