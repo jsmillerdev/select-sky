@@ -27,6 +27,15 @@ def splash(app, t):
     ui.caps("open source · micropython · unofficial", 160, 220, TEXT_4, ui.CENTER_X)
 
 
+def paused(app):
+    """Nobody pressed a button for a while: updates stop until someone does."""
+    ui.box(0, 0, ui.W, ui.H, BG_DEEP)
+    ui.bolt(160 - 23, 52, 48)
+    ui.sans("Paused", 160, 118, 22, TEXT_2, ui.CENTER_X)
+    ui.caps("no updates while nobody is watching", 160, 152, TEXT_3, ui.CENTER_X)
+    ui.caps("press any button", 160, 204, GREEN if (app.now // 800) % 2 == 0 else GREEN_MID, ui.CENTER_X)
+
+
 def alert(app):
     """Emergency squawk takes over the screen until B acknowledges it."""
     a = app.model.alert

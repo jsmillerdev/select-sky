@@ -19,6 +19,7 @@ class Hardware:
         self._pulse_ms = None
         self._backlight = None
         self._full = False
+        self._sleep = False
 
     def refresh(self):
         """Re-read the sensors and settings on the next frame."""
@@ -27,6 +28,11 @@ class Hardware:
     def full_light(self, on):
         """Full backlight while a phone scans the screen; False gives the wearer's level back."""
         self._full = on
+        self.refresh()
+
+    def sleep(self, on):
+        """Lowest backlight and dark rear lights while the app is paused."""
+        self._sleep = on
         self.refresh()
 
     def pulse(self, now):
@@ -39,7 +45,11 @@ class Hardware:
             self._next_slow = now + 1000
             self._read_slow()
             self._set_backlight(app)
-        self._set_lamps(app, now)
+        if self._sleep:
+            self.off()
+            self._lamps = [0.0] * 4
+        else:
+            self._set_lamps(app, now)
 
     def off(self):
         try:
@@ -68,7 +78,7 @@ class Hardware:
         level = app.settings["bright"] / 100.0
         if app.settings["auto_dim"] and self.ambient is not None:
             level *= 0.4 + 0.6 * self.ambient
-        level = 1.0 if self._full else max(0.15, min(1.0, level))
+        level = 0.15 if self._sleep else 1.0 if self._full else max(0.15, min(1.0, level))
         if level != self._backlight:
             self._backlight = level
             try:

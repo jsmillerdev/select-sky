@@ -27,7 +27,8 @@ badge.default_clear = skytheme.BG
 
 VIEWS = (view_wall, view_radar, view_board, view_track, view_stats, view_setup)
 SETTINGS = {"range": 25, "metric": False, "bright": 85, "auto_dim": False, "leds": True,
-            "ground": False, "cycle": 7, "track": "", "track_cfg": "", "home": "", "pos": None}
+            "ground": False, "cycle": 7, "track": "", "track_cfg": "", "home": "", "pos": None,
+            "live": True, "sleep": 30}
 CYCLE_TOP = 5                 # auto mode steps through this many of the nearest
 HOME_SETTLE_MS = 700          # a Home pick applies this long after the last one, so a run of presses is one move
 SPLASH_MIN_MS = 2300
@@ -69,6 +70,8 @@ class App:
         self._home_ms = 0
         self._repeat_ms = 0
         self._frame_ms = 16.0
+        self.input_ms = 0             # when a button was last pressed; the app pauses sleep minutes later
+        self.asleep = False
 
     # ---- helpers the views call ---------------------------------------
 
@@ -156,6 +159,20 @@ class App:
         if self._frame_ms > 90 and screen.antialias != image.OFF:
             screen.antialias = image.OFF
         m = self.model
+        pressed = badge.pressed()
+        if pressed or self.start_ms == now:
+            self.input_ms = now
+        nap = self.settings["sleep"] * 60000
+        if self.asleep or (nap and now - self.input_ms >= nap):
+            if self.asleep and pressed:         # the press that wakes it is not also a view key
+                self.asleep = False
+                self.feed.refresh()
+            elif not self.asleep:
+                self.asleep = True
+            self.hw.sleep(self.asleep)
+            self.hw.update(self)
+            skyoverlay.paused(self)             # no feed.tick: a paused badge sends no requests
+            return
         self.hw.update(self)
         self.feed.tick(now)
         if self.home_pick is not None and now - self._home_ms >= HOME_SETTLE_MS:

@@ -160,9 +160,9 @@ class Feed:
             self._here_url = base + sep + "here=%s"
         if ON_BADGE:
             self._chain.extend(DIRECT)
-        self._live = 0 if self._chain and requests else None    # index into _chain, None for demo
-        if self._live is None:
-            self.note = "Demo traffic. Set PROXY_URL in config.py"
+        self.can_live = bool(self._chain and requests)
+        self._live = None           # index into _chain, None for demo
+        self.set_live(settings.get("live", True))
 
     # ---- public --------------------------------------------------------
 
@@ -181,6 +181,15 @@ class Feed:
 
     def age_s(self, now):
         return None if self.rows_ms is None else (now - self.rows_ms) / 1000.0
+
+    def set_live(self, on):
+        """Live data on or off. Off flies the demo and sends no requests at all."""
+        self._on = on and self.can_live
+        self._live = 0 if self._on else None
+        self._fails = 0
+        self._next_poll = self._retry_live = 0
+        if not self._on:
+            self.note = "Demo traffic. " + ("Live data is off" if self.can_live else "Set PROXY_URL in config.py")
 
     def refresh(self):
         """Ask for rows on the next frame, such as after the range changed."""
@@ -232,7 +241,7 @@ class Feed:
     def _due(self, now):
         if not self._located:
             return self._locate
-        if self._live is None and self._chain and now >= self._retry_live:
+        if self._live is None and self._on and now >= self._retry_live:
             self._live = 0          # a probe: _live is set while the source is still "demo"
             self._next_poll = 0
         geo = self._live is not None and self._geo_at is not None and now >= self._geo_at

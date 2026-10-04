@@ -1147,6 +1147,23 @@ class FeedStateMachine(FeedHarness):
         self.pump(self.t + skyfeed.RETRY_LIVE_MS + 3000)
         self.assertEqual((f.status, f.source), ("LIVE", "edge fn"))
 
+    def test_live_data_off_flies_the_demo_and_sends_nothing_until_it_is_on_again(self):
+        f = self.build(settings={"live": False})
+        self.serve({"supabase": payload(row("real1", lat=37.65))})
+        self.pump(200000)                                    # well past RETRY_LIVE_MS
+        self.assertEqual(self.urls, [])
+        self.assertEqual((f.status, f.note), ("DEMO", "Demo traffic. Live data is off"))
+        f.set_live(True)
+        self.pump(self.t + 3000)
+        self.assertEqual((f.status, f.source), ("LIVE", "edge fn"))
+        self.assertEqual([a.hex for a in self.model.rows.values()], ["real1"])
+        sent = len(self.urls)
+        f.set_live(False)
+        self.pump(self.t + 200000)
+        self.assertEqual(len(self.urls), sent)
+        self.assertEqual(f.status, "DEMO")
+        self.assertNotIn("real1", self.model.rows)
+
     def test_live_to_demo_leaves_no_live_aircraft_beside_the_demo_ones(self):
         state = {"up": True}
 

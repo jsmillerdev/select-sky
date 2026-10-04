@@ -35,7 +35,7 @@ alert fills the screen and the rear lights flash until you acknowledge it.
 
 <table>
 <tr>
-  <td align="center"><img src="branding/screens/wall.png" width="260" alt="Wall view: flight UAL1506, San Francisco to Los Angeles, with altitude, speed, track and vertical speed"><br><sub>Wall</sub></td>
+  <td align="center"><img src="branding/screens/wall.png" width="260" alt="Wall view: flight UAL1736, Denver to Kahului, with altitude, speed, track and vertical speed"><br><sub>Wall</sub></td>
   <td align="center"><img src="branding/screens/radar.png" width="260" alt="Radar view: a sweep over aircraft colored by altitude, with the selected flight's details"><br><sub>Radar</sub></td>
   <td align="center"><img src="branding/screens/board.png" width="260" alt="Board view: a table of aircraft sorted by altitude"><br><sub>Board</sub></td>
 </tr>
@@ -53,6 +53,9 @@ alert fills the screen and the rear lights flash until you acknowledge it.
   <td align="center"><img src="branding/screens/alert.png" width="260" alt="Squawk alert: code 7700, general emergency, with the aircraft's distance and altitude"><br><sub>Squawk alert</sub></td>
   <td align="center"><img src="branding/screens/about.png" width="260" alt="About page: license, status and data sources"><br><sub>About</sub></td>
   <td align="center"><img src="branding/screens/splash.png" width="260" alt="Startup screen: the Supabase bolt above the query select * from sky;"><br><sub>Startup</sub></td>
+</tr>
+<tr>
+  <td align="center"><img src="branding/screens/paused.png" width="260" alt="Paused screen: updates have stopped until a button is pressed"><br><sub>Paused</sub></td>
 </tr>
 </table>
 
@@ -132,6 +135,23 @@ Before you share your copy of the app, set `PROXY_URL` back to `""`. Everyone
 who runs a copy with your URL uses your relay and your Supabase quota.
 [DETAILS.md](DETAILS.md#get-live-aircraft) covers what the relay does and what
 it costs.
+
+### Keep usage low
+
+The relay runs only when a badge asks it for something. Nothing runs in the
+background.
+
+- **The badge pauses by itself.** With no button press for 30 minutes it shows
+  **Paused** and sends nothing until you press a button. Change the delay with
+  **Pause after** in Setup.
+- **Switch live data off.** **Live data** in Setup, switched off, shows demo
+  traffic and sends no requests.
+- **Turn the relay off.** Delete the function, or pause the project in the
+  Supabase dashboard:
+
+  ```sh
+  supabase functions delete sky --project-ref YOUR_PROJECT_REF
+  ```
 
 ## Exact position
 

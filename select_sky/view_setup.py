@@ -31,14 +31,15 @@ SCROLL_MARGIN = 1               # rows kept between the pick and the edge, so th
 
 BRIGHTS = (20, 40, 60, 85, 100)
 CYCLES = (5, 7, 10, 15)
+SLEEPS = (15, 30, 60, 0)         # minutes without a button press before updates pause; 0 never
 HOMES = [""] + sorted(skydata.AIRPORTS)         # "" is AUTO
 HOMES_EXACT = ["", skygeo.EXACT] + HOMES[1:]    # once a position is saved, EXACT comes right after AUTO
 
 ROWS = (("range", "Range"), ("units", "Units"), ("home", "Home"), ("pos", "Exact position"),
         ("track", "Track callsign"), ("bright", "Brightness"), ("auto_dim", "Auto dim"), ("leds", "Rear lights"),
-        ("ground", "Ground traffic"), ("cycle", "Cycle"), ("alert", "Test alert"),
-        ("source", "Data source"), ("about", "About"))
-SWITCHES = ("auto_dim", "leds", "ground", "alert")
+        ("ground", "Ground traffic"), ("cycle", "Cycle"), ("live", "Live data"), ("sleep", "Pause after"),
+        ("alert", "Test alert"), ("source", "Data source"), ("about", "About"))
+SWITCHES = ("auto_dim", "leds", "ground", "live", "alert")
 OPENERS = ("pos", "track", "about")             # rows that open a page instead of changing in place
 HELP = {
     "range": "How far out an aircraft counts as nearby",
@@ -51,6 +52,8 @@ HELP = {
     "leds": "Rear lights glow as traffic gets close",
     "ground": "Show aircraft that are on the ground",
     "cycle": "Seconds per aircraft when cycling",
+    "live": "Off shows demo traffic and sends no requests",
+    "sleep": "Pauses updates when no button is pressed",
     "alert": "Fake a 7700 squawk on the next update",
     "about": "Credits, license and data sources",
 }
@@ -117,9 +120,9 @@ def _demo(app):
     return app.feed.status == "DEMO"
 
 
-def _relay():
-    """The phone flow needs a relay a phone can reach."""
-    return config.PROXY_URL.startswith("https://")
+def _relay(app):
+    """The phone flow needs a relay a phone can reach, and live data switched on."""
+    return config.PROXY_URL.startswith("https://") and app.settings["live"]
 
 
 def _home_code(app):
@@ -136,7 +139,8 @@ def _flag(app, key):
 
 def _locked(app, key):
     """Rows B cannot change: the feed's name, a HOME pinned in config.py, and the demo-only alert."""
-    return key == "source" or (key in ("home", "pos") and bool(config.HOME)) or (key == "alert" and not _demo(app))
+    return (key == "source" or (key in ("home", "pos") and bool(config.HOME)) or (key == "alert" and not _demo(app))
+            or (key == "live" and not app.feed.can_live))
 
 
 def _helptext(app, key):
@@ -147,9 +151,11 @@ def _helptext(app, key):
             return "Only works with demo traffic, not a live feed"
         if app.feed.demo_alert:
             return "Still squawking 7700. B stops it" if app.model.acked else "Squawk starts on the next update. B cancels"
+    if key == "live" and not app.feed.can_live:
+        return "Needs a relay. Set PROXY_URL in config.py"
     if key in ("home", "pos") and config.HOME:
         return "Pinned by HOME in config.py"
-    if key == "pos" and _relay():
+    if key == "pos" and _relay(app):
         return "Center the radar on you. Scan with your phone"
     if key == "home" and app.home_pick is not None:
         return "Moves home when you stop pressing B"
@@ -200,6 +206,10 @@ def _value_text(app, key):
         return "Shown" if s["ground"] else "Hidden"
     if key == "cycle":
         return "%d s" % s["cycle"]
+    if key == "live":
+        return ("On" if s["live"] else "Off") if app.feed.can_live else "No relay"
+    if key == "sleep":
+        return "%d min" % s["sleep"] if s["sleep"] else "Never"
     if key == "alert":
         if not _demo(app):
             return "Demo only"
@@ -217,7 +227,7 @@ def _b_label(app, key):
         return "OPEN"
     if _locked(app, key):
         return None
-    if key == "pos" and _relay():
+    if key == "pos" and _relay(app):
         return "LOCATE"
     if key in ("track", "pos"):
         return "EDIT"
@@ -235,7 +245,7 @@ def _change(app, key):
     elif key == "home":
         app.set_home(_next(HOMES_EXACT if skygeo.exact_pos(s) else HOMES, _home_code(app)))
     elif key == "pos":
-        if not (_relay() and _open_locate(app)):
+        if not (_relay(app) and _open_locate(app)):
             _open_editor(app)
     elif key == "track":
         cs = (s["track"] or "").upper()[:SLOTS]
@@ -257,6 +267,12 @@ def _change(app, key):
             s["bright"] = _next(BRIGHTS, s["bright"])
         elif key == "cycle":
             s["cycle"] = _next(CYCLES, s["cycle"])
+        elif key == "sleep":
+            s["sleep"] = _next(SLEEPS, s["sleep"])
+        elif key == "live":
+            s["live"] = not s["live"]
+            st.flip[key] = app.now
+            app.feed.set_live(s["live"])
         else:
             s[key] = not s[key]             # auto_dim, leds and ground
             st.flip[key] = app.now

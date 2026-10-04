@@ -87,8 +87,20 @@ every minute.
 
 What the relay costs you:
 
-- One badge that polls every 12 seconds makes about 216,000 calls a month.
-  Compare that with the Edge Function quota of your Supabase plan.
+- The relay runs only when a badge asks it for something. It has no schedule
+  and no background work, so a relay that nobody calls uses nothing.
+- A badge that is showing live aircraft polls every 12 seconds, which is 300
+  calls an hour. Left on all month, that is about 216,000 calls. Compare that
+  with the Edge Function quota of your Supabase plan.
+- The badge stops by itself. With no button press for 30 minutes it shows
+  **Paused** and sends nothing until you press a button. **Pause after** in
+  Setup changes the delay or turns the pause off.
+- **Live data** in Setup, switched off, shows demo traffic and sends no
+  requests at all.
+- To turn the relay itself off, delete the function with
+  `supabase functions delete sky --project-ref YOUR_PROJECT_REF`, or pause the
+  project in the Supabase dashboard. A real badge then asks the feeds directly;
+  the browser shows demo traffic. Deploy the function again to bring it back.
 - Supabase can pause a Free plan project that has no database activity, and
   aircraft requests make no database queries. If the chip changes to **DEMO**
   after a quiet week, resume the project in the Supabase dashboard.
@@ -154,8 +166,15 @@ copy, publish `docs/` with GitHub Pages and set `LOCATE_PAGE`.
 
 ## Settings
 
-Change most settings on the badge in the **Setup** view. `select_sky/config.py`
-holds the ones you set once:
+Change most settings on the badge in the **Setup** view. Two of them control
+how much the badge asks for:
+
+- **Live data:** on by default. Off shows demo traffic and sends no requests.
+- **Pause after:** 15, 30 or 60 minutes without a button press, or Never. The
+  default is 30 minutes. A paused badge dims, sends no requests and resumes on
+  any button.
+
+`select_sky/config.py` holds the settings you set once:
 
 | Setting | Purpose |
 | --- | --- |
