@@ -14,6 +14,10 @@ import skygeo
 from skymodel import ALT, CAT, CS, DIR, DST, FLAGS, GS, HEX, LAT, LON, REG, SEEN, SQK, TRK, TYPE, VR
 
 try:
+    import gc
+except ImportError:
+    gc = None
+try:
     import requests
 except ImportError:
     requests = None
@@ -46,6 +50,7 @@ GEO_TRIES = 4              # requests to ipwho.is per Auto lookup
 TRACK_EVERY_MS = 30000
 FEED_GAP_MS = 2500         # least time between a poll and a callsign lookup
 ROUTE_RETRY_MS = 30000     # wait before asking again after a route lookup failed in transit
+ROUTE_SETTLE_MS = 1500     # a selection must rest this long before its route is asked for, so paging the list never blocks
 LOCATE_EVERY_MS = 2500     # between asks for the position a phone is sending
 LOCATE_LIFE_MS = 300000    # a locate code is asked for this long, then it expires
 VALID_CLOCK = 1735689600      # 2025-01-01: an RTC before this was never set
@@ -139,6 +144,9 @@ class Feed:
         self._next_track = 0
         self._next_route = 0
         self._route_fails = 0
+        self._route_hex = None      # the aircraft whose route is wanted, and since when
+        self._route_since = 0
+        self._net_ms = -100000      # when the last blocking request ran
         self._retry_live = 0
         self._fails = 0
         self._real = False          # a live source has answered this session
@@ -225,7 +233,11 @@ class Feed:
         """Run the armed job, or arm the next one. `now` is the app's clock: it never wraps."""
         if self._job:
             job, self._job = self._job, None
+            began = time.ticks_ms()
             job(now)
+            self._net_ms = now + time.ticks_diff(time.ticks_ms(), began)     # the end of the block, on the app's clock
+            if gc:
+                gc.collect()        # this frame has already stalled: collect now, not in the middle of an animation
             return
         age = self.age_s(now)
         if self._live is not None and age is not None and age > 3 * config.POLL_S:
@@ -266,7 +278,12 @@ class Feed:
         clear = gap <= self._next_poll - now <= config.POLL_S * 1000 - gap
         if clear and m.track and (m.tracked is None or m.tracked.hex not in m.rows) and now >= self._next_track:
             return self._track
-        if now >= self._next_route and self._route_target():
+        a = self._route_target()
+        if a and a.hex != self._route_hex:
+            self._route_hex, self._route_since = a.hex, now
+        # A blocking lookup waits for the selection to rest, and never lands right beside another request.
+        if (a and now >= self._next_route and now - self._route_since >= ROUTE_SETTLE_MS
+                and now - self._net_ms >= FEED_GAP_MS and self._next_poll - now >= FEED_GAP_MS):
             return self._route
         return None
 

@@ -76,6 +76,7 @@ class App:
         self._save_ms = None
         self._repeat_ms = 0
         self._frame_ms = 16.0
+        self._blocked = False         # the last frame ran a network request, so its length says nothing about drawing
         self.input_ms = 0             # when a button was last pressed; the app pauses sleep minutes later
         self.asleep = False
 
@@ -171,8 +172,10 @@ class App:
         now = self.now = raw + self._wrap
         if self.start_ms is None:
             self.start_ms = self.sel_ms = now
-        # If frames run slow, trade antialiasing for speed and keep it that way.
-        self._frame_ms = self._frame_ms * 0.95 + min(badge.ticks_delta, 250) * 0.05
+        # If frames run slow, trade antialiasing for speed and keep it that way. A frame a request blocked does not count.
+        if not self._blocked:
+            self._frame_ms = self._frame_ms * 0.95 + min(badge.ticks_delta, 250) * 0.05
+        self._blocked = False
         if self._frame_ms > 90 and screen.antialias != image.OFF:
             screen.antialias = image.OFF
         m = self.model
@@ -193,6 +196,7 @@ class App:
             skyoverlay.paused(self)             # no feed.tick: a paused badge sends no requests
             return
         self.hw.update(self)
+        self._blocked = self.feed.busy      # an armed job runs in this tick
         self.feed.tick(now)
         if self.home_pick is not None and now - self._home_ms >= HOME_SETTLE_MS:
             code, self.home_pick = self.home_pick, None

@@ -50,6 +50,7 @@ class Aircraft:
         self.phase = "NO ALT"
         self.operator = "Private"
         self.kind = "Unknown type"
+        self._ident = None      # the fields the lookups above were made from
 
     def load(self, row, now):
         self.cs, self.type, self.alt = row[CS], row[TYPE], row[ALT]
@@ -59,8 +60,6 @@ class Aircraft:
         self.lat0, self.lon0 = row[LAT], row[LON]
         self.t0 = now - int(row[SEEN] * 1000)
         self.seen_ms = now
-        al = self.airline = skydata.airline(self.cs)
-        self.glyph = skydata.glyph(self.type, row[CAT])
         if moved:
             self.trail.append((self.lat0, self.lon0, self.alt))
             if len(self.trail) > TRAIL_MAX:
@@ -71,11 +70,17 @@ class Aircraft:
             if len(self.alts) > HISTORY_MAX:
                 self.alts.pop(0)
                 self.speeds.pop(0)
-        self.label = self.cs or self.reg or self.hex.upper()
         self.on_ground = self.alt == 0
-        self.military = bool(self.flags & 1)
         self.emergency = EMERGENCY.get(self.sqk)
         self.phase = _phase(self.alt, self.vr)
+        ident = (self.cs, self.type, row[CAT], self.flags, self.reg)
+        if ident == self._ident:
+            return              # same aircraft, same identity: the table lookups below stand, and every poll skips them
+        self._ident = ident
+        al = self.airline = skydata.airline(self.cs)
+        self.glyph = skydata.glyph(self.type, row[CAT])
+        self.label = self.cs or self.reg or self.hex.upper()
+        self.military = bool(self.flags & 1)
         self.operator = al[1] if al and al[1] else "Military" if self.military else "Private" if not al else al[0]
         self.kind = skydata.type_name(self.type) or "Unknown type"
         self.cls = skydata.classify(self.type, row[CAT], self.flags, self.cs)

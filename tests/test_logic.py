@@ -1642,6 +1642,22 @@ class FeedStateMachine(FeedHarness):
         f._route(0)                                          # a real 404 means "no such route" at once
         self.assertEqual(self.model.routes, {"UAL1": False})
 
+    def test_route_waits_for_the_selection_to_rest(self):
+        # A lookup blocks the badge, so paging the list must not set one off on every press.
+        f = self.build()
+        self.model.set_home(*SFO, "SFO")
+        self.model.ingest([row("a", cs="UAL1"), row("b", cs="UAL2", lat=37.8)], 0)
+        f._locate(0)
+        f._next_poll = 10 ** 9                               # leave the polling out of it
+        self.model.sel = "a"
+        self.assertIsNone(f._due(1000))
+        self.model.sel = "b"
+        self.assertIsNone(f._due(2000))                      # a new selection starts the wait afresh
+        self.assertIsNone(f._due(2000 + skyfeed.ROUTE_SETTLE_MS - 1))
+        self.assertEqual(f._due(2000 + skyfeed.ROUTE_SETTLE_MS), f._route)
+        f._next_poll = 2000 + skyfeed.ROUTE_SETTLE_MS + 1000
+        self.assertIsNone(f._due(2000 + skyfeed.ROUTE_SETTLE_MS))      # nor does it land just before a poll
+
     def test_a_found_route_is_kept_when_the_memo_is_full(self):
         f = self.build()
         self.model.set_home(*SFO, "SFO")
