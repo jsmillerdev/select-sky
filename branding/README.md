@@ -221,7 +221,7 @@ Two kinds of image carry the brand: screens and badge renders. Both come from th
 - `badge/front-wall.png` is the simulator's flat 2D view, scaled so its screen lands on an exact 3x. The screen pixels are the Wall capture at 3x.
 - The social cards carry "simulator render" in their fine print. Keep that wording when you adapt a card.
 
-Known mismatch: the view stills show AAL732 at 08:13 and the badge renders show BAW116 at 08:30, both over London, with airline logos. The views tour, `badge/front-wall.png` and the social cards predate the logos: the tour shows EIN63N at 07:49Z, and the radar loop and the social cards show SKW3440 at 14:16Z, near San Francisco, without the HOLD ZOOM label. The other stills come from separate sessions.
+Known mismatch: the view stills show AAL732 at 08:13 and the badge renders show BAW116 at 08:30, both over London, with airline logos. The social cards, README banner included, come from one live session over San Francisco: AAL304, San Francisco to Dallas-Fort Worth, at 08:07, with its logo. The views tour, `badge/front-wall.png` and the radar loop predate the logos: the tour shows EIN63N at 07:49Z, and the radar loop shows SKW3440 at 14:16Z, near San Francisco, without the HOLD ZOOM label. The other stills come from separate sessions.
 
 ## Motion
 
@@ -420,11 +420,11 @@ Paths are relative to this folder. Sizes are pixels (viewBox for SVG) and file w
 | `badge/hero-radar-right.png` | 1600 × 2000 · 493 KB | Angled hero, Radar view, turned right |
 | `badge/hero-radar.png` | 1600 × 2000 · 571 KB | Portrait hero: badge on lanyard, Radar view |
 | `badge/hero-wall.png` | 1600 × 2000 · 535 KB | Portrait hero, Wall view |
-| `social/contest-card.png` | 1600 × 900 · 266 KB | Contest card with #SelectBadge |
+| `social/contest-card.png` | 1600 × 900 · 265 KB | Contest card with #SelectBadge |
 | `social/og-card.png` | 1200 × 630 · 176 KB | Open Graph card for link previews |
-| `social/readme-banner.png` | 1600 × 520 · 73 KB | README banner: logo, tagline, two screens |
-| `social/square.png` | 1080 × 1080 · 211 KB | Square post: centered badge and tagline |
-| `social/x-post.png` | 1600 × 900 · 272 KB | X post card: hero, tagline, two screens |
+| `social/readme-banner.png` | 1600 × 520 · 74 KB | README banner: logo, tagline, two screens |
+| `social/square.png` | 1080 × 1080 · 212 KB | Square post: centered badge and tagline |
+| `social/x-post.png` | 1600 × 900 · 273 KB | X post card: hero, tagline, two screens |
 | `motion/radar-loop-small.gif` | 320 × 240 · 303 KB | Half-size radar loop for embeds |
 | `motion/radar-loop.gif` | 640 × 480 · 684 KB | Looping one-sweep radar loop, 4.0 s |
 | `motion/views-tour.gif` | 640 × 480 · 513 KB | Six-view tour, 7.2 s |
