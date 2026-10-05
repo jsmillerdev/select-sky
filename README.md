@@ -149,13 +149,6 @@ python3 scripts/build_logos.py           # rebuilds the airline logo sheets
 [DETAILS.md](DETAILS.md) covers every setting, the code layout, data and
 privacy, and running the relay locally.
 
-## Status
-
-Built in the badge.select simulator and run on one SELECT badge with a relay.
-Filters, the self-clearing alert, radar zoom and airline logos have run only in
-the simulator so far. Reading the feeds without a relay is untested on hardware.
-See [DETAILS.md](DETAILS.md#status).
-
 ## Credits
 
 - **Aircraft positions:** [adsb.fi](https://adsb.fi/) and
