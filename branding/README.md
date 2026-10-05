@@ -217,11 +217,11 @@ Two kinds of image carry the brand: screens and badge renders. Both come from th
 - Use the portrait hero (`hero-radar.png`, 1600 × 2000) for posts and posters, the angled heroes for variety, and the device crops (1333 × 971) for documentation.
 - The badge card, QR block and lanyard in the renders are Supabase's SELECT artwork from the simulator. Keep them as rendered. Do not add marks to them or crop them into decoration.
 - Choose a render where the screen is legible and the chip reads LIVE or DEMO.
-- `badge/hero-wall.png` shows flight BAW116, New York to London, as captured.
+- `badge/hero-wall.png` shows flight AAL304, San Francisco to Dallas-Fort Worth, as captured.
 - `badge/front-wall.png` is the simulator's flat 2D view, scaled so its screen lands on an exact 3x. The screen pixels are the Wall capture at 3x.
 - The social cards carry "simulator render" in their fine print. Keep that wording when you adapt a card.
 
-Known mismatch: the view stills show AAL732 at 08:13 and the badge renders show BAW116 at 08:30, both over London, with airline logos. The social cards, README banner included, come from one live session over San Francisco: AAL304, San Francisco to Dallas-Fort Worth, at 08:07, with its logo. The views tour, `badge/front-wall.png` and the radar loop predate the logos: the tour shows EIN63N at 07:49Z, and the radar loop shows SKW3440 at 14:16Z, near San Francisco, without the HOLD ZOOM label. The other stills come from separate sessions.
+Capture sessions: everything comes from live simulator sessions over San Francisco on 2026-10-05, with airline logos. The six view stills, the badge renders, `badge/front-wall.png`, the views tour and the social cards share one session: AAL304, San Francisco to Dallas-Fort Worth, at 08:07. The radar loop shows ASA725 at 08:25. The other screens come from separate sessions minutes apart; the alert and the position editor use demo traffic.
 
 ## Motion
 
@@ -232,7 +232,7 @@ Known mismatch: the view stills show AAL732 at 08:13 and the badge renders show 
 | `motion/views-tour.gif` | 640 × 480, 30 frames, 7.2 s | A tour of all six views with a stepped wipe and a 4 px green leading edge. Launch posts. |
 
 - Use one GIF per post. Do not change the speed.
-- Two of the 36 radar frames were synthesized from the app's own sweep model, to cover an arc the capture missed. Check the loop point if you re-edit the file.
+- The 36 radar frames are one real sweep, picked from a continuous capture so the beam steps about 10 degrees a frame. None are synthesized. Check the loop point if you re-edit the file.
 - There is no MP4 version. The tool that makes one (`ffmpeg`) was not installed when this kit was built.
 
 ## Voice and tone
@@ -343,7 +343,7 @@ For the five main images. Each starts with what the image is, then what it shows
 | Image | Alt text |
 | --- | --- |
 | `badge/hero-radar.png` | Simulator render of the Supabase SELECT badge on its lanyard, with the Select Sky Radar view on screen: a green sweep over aircraft colored by altitude. |
-| `badge/hero-wall.png` | Simulator render of the SELECT badge on its lanyard, with the Select Sky Wall view on screen: callsign BAW116 with the British Airways logo, a route bar and four stat tiles. |
+| `badge/hero-wall.png` | Simulator render of the SELECT badge on its lanyard, with the Select Sky Wall view on screen: callsign AAL304 with the American logo, a route bar and four stat tiles. |
 | `screens/all-views.png` | Six Select Sky screens in a grid, each with a LIVE chip: Wall, Radar, Board, Track, Stats and Setup, on a dark green-black background. |
 | `social/og-card.png` | Select Sky logo and the tagline select * from sky; beside a simulator render of the SELECT badge running the Radar view. Open source, MicroPython, simulator render, unofficial. |
 | `motion/radar-loop.gif` | Animation of one full turn of the Select Sky radar sweep over aircraft colored by altitude, with the selected flight's details beside the scope. |
@@ -395,39 +395,39 @@ Paths are relative to this folder. Sizes are pixels (viewBox for SVG) and file w
 | `logo/logo-sheet.png` | 2000 × 1200 · 228 KB | Logo system overview: sizes, clear space, do not |
 | `screens/about.png` | 1280 × 960 · 44 KB | About page capture |
 | `screens/alert.png` | 1280 × 960 · 44 KB | Squawk alert capture; caption it as the alert screen |
-| `screens/all-views.png` | 2400 × 1400 · 102 KB | 3 × 2 grid of the six views |
+| `screens/all-views.png` | 2400 × 1400 · 97 KB | 3 × 2 grid of the six views |
 | `screens/board.png` | 1280 × 960 · 50 KB | Board view capture |
 | `screens/callsign.png` | 1280 × 960 · 39 KB | Callsign editor capture |
 | `screens/filter.png` | 1280 × 960 · 37 KB | Setup with the Show filter on Heavies only |
-| `screens/locate.png` | 1280 × 960 · 42 KB | Scan-to-locate capture; the QR code holds a placeholder relay |
+| `screens/locate.png` | 1280 × 960 · 41 KB | Scan-to-locate capture; the QR code holds a placeholder relay |
 | `screens/paused.png` | 1280 × 960 · 33 KB | Paused screen capture |
-| `screens/radar-zoom.png` | 1280 × 960 · 70 KB | Radar view zoomed in on one flight |
+| `screens/radar-zoom.png` | 1280 × 960 · 71 KB | Radar view zoomed in on one flight |
 | `screens/position.png` | 1280 × 960 · 50 KB | Position editor capture |
-| `screens/radar.png` | 1280 × 960 · 80 KB | Radar view capture |
-| `screens/setup.png` | 1280 × 960 · 36 KB | Setup view capture |
+| `screens/radar.png` | 1280 × 960 · 72 KB | Radar view capture |
+| `screens/setup.png` | 1280 × 960 · 37 KB | Setup view capture |
 | `screens/splash.png` | 1280 × 960 · 36 KB | Boot splash capture; shows the in-app Supabase bolt |
-| `screens/stats.png` | 1280 × 960 · 44 KB | Stats view capture |
+| `screens/stats.png` | 1280 × 960 · 43 KB | Stats view capture |
 | `screens/track.png` | 1280 × 960 · 59 KB | Track view capture |
-| `screens/wall.png` | 1280 × 960 · 54 KB | Wall view capture |
-| `badge/device-board.png` | 1333 × 971 · 319 KB | Tight device crop, Board view |
-| `badge/device-radar.png` | 1333 × 971 · 359 KB | Tight device crop, Radar view |
-| `badge/device-setup.png` | 1333 × 971 · 278 KB | Tight device crop, Setup view |
-| `badge/device-stats.png` | 1333 × 971 · 306 KB | Tight device crop, Stats view |
-| `badge/device-track.png` | 1333 × 971 · 329 KB | Tight device crop, Track view |
-| `badge/device-wall.png` | 1333 × 971 · 309 KB | Tight device crop, Wall view |
-| `badge/front-wall.png` | 1548 × 1232 · 227 KB | Flat front view, Wall view, screen at exact 3x |
-| `badge/hero-radar-left.png` | 1600 × 2000 · 573 KB | Angled hero, Radar view, turned left |
-| `badge/hero-radar-right.png` | 1600 × 2000 · 493 KB | Angled hero, Radar view, turned right |
-| `badge/hero-radar.png` | 1600 × 2000 · 571 KB | Portrait hero: badge on lanyard, Radar view |
-| `badge/hero-wall.png` | 1600 × 2000 · 535 KB | Portrait hero, Wall view |
+| `screens/wall.png` | 1280 × 960 · 55 KB | Wall view capture |
+| `badge/device-board.png` | 1333 × 971 · 331 KB | Tight device crop, Board view |
+| `badge/device-radar.png` | 1333 × 971 · 345 KB | Tight device crop, Radar view |
+| `badge/device-setup.png` | 1333 × 971 · 284 KB | Tight device crop, Setup view |
+| `badge/device-stats.png` | 1333 × 971 · 309 KB | Tight device crop, Stats view |
+| `badge/device-track.png` | 1333 × 971 · 339 KB | Tight device crop, Track view |
+| `badge/device-wall.png` | 1333 × 971 · 326 KB | Tight device crop, Wall view |
+| `badge/front-wall.png` | 1548 × 1232 · 229 KB | Flat front view, Wall view, screen at exact 3x |
+| `badge/hero-radar-left.png` | 1600 × 2000 · 563 KB | Angled hero, Radar view, turned left |
+| `badge/hero-radar-right.png` | 1600 × 2000 · 487 KB | Angled hero, Radar view, turned right |
+| `badge/hero-radar.png` | 1600 × 2000 · 561 KB | Portrait hero: badge on lanyard, Radar view |
+| `badge/hero-wall.png` | 1600 × 2000 · 551 KB | Portrait hero, Wall view |
 | `social/contest-card.png` | 1600 × 900 · 265 KB | Contest card with #SelectBadge |
-| `social/og-card.png` | 1200 × 630 · 176 KB | Open Graph card for link previews |
+| `social/og-card.png` | 1200 × 630 · 177 KB | Open Graph card for link previews |
 | `social/readme-banner.png` | 1600 × 520 · 74 KB | README banner: logo, tagline, two screens |
 | `social/square.png` | 1080 × 1080 · 212 KB | Square post: centered badge and tagline |
-| `social/x-post.png` | 1600 × 900 · 273 KB | X post card: hero, tagline, two screens |
-| `motion/radar-loop-small.gif` | 320 × 240 · 303 KB | Half-size radar loop for embeds |
-| `motion/radar-loop.gif` | 640 × 480 · 684 KB | Looping one-sweep radar loop, 4.0 s |
-| `motion/views-tour.gif` | 640 × 480 · 513 KB | Six-view tour, 7.2 s |
+| `social/x-post.png` | 1600 × 900 · 274 KB | X post card: hero, tagline, two screens |
+| `motion/radar-loop-small.gif` | 320 × 240 · 305 KB | Half-size radar loop for embeds |
+| `motion/radar-loop.gif` | 640 × 480 · 687 KB | Looping one-sweep radar loop, 4.0 s |
+| `motion/views-tour.gif` | 640 × 480 · 549 KB | Six-view tour, 7.2 s |
 | `README.md` | single file · 26 KB | This brand guide |
 | `index.html` | single file · 48 KB | Single-file brand sheet; opens from disk |
-| `brand-sheet.png` | 1600 × 14625 · 2343 KB | Full-page render of index.html (1600 px wide) |
+| `brand-sheet.png` | 1600 × 14625 · 2320 KB | Full-page render of index.html (1600 px wide) |
