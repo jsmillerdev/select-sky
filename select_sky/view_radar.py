@@ -4,7 +4,8 @@ Left, a round scope: range rings, compass marks, a rotating beam and every
 aircraft at its true position. Traffic beyond the range sits on the bezel at its
 bearing, so you can see what is coming. Right, the selected aircraft.
 
-B cycles the range, UP and DOWN move the selection.
+B cycles the range, and held it zooms the scope in on the selection. UP and DOWN move the selection;
+zoomed, A, C, UP and DOWN pan.
 """
 
 import math
@@ -13,6 +14,7 @@ from badgeware import *
 
 import skygeo
 import skyui as ui
+import skyview
 from skymodel import RANGES
 from skytheme import *
 
@@ -26,7 +28,7 @@ INFO_X, INFO_R = 208, 312    # info column, left and right edges
 VALUE_R, UNIT_X = 283, 287   # readout numbers end here and their units start here (KM/H ends at the margin)
 
 SWEEP_MS = 4000              # one turn of the beam
-ZOOM_HALF_MS = 70            # a range change closes half the gap every 70 ms
+ZOOM_HALF_MS = 70            # the scope closes half the gap to its goal every 70 ms
 LOCK_MS = 260                # reticle closes on a newly selected aircraft
 TAG_H = 15                   # selection tag height
 TRAIL_PTS = 5
@@ -37,7 +39,8 @@ CARDINALS = (("N", 0, -1), ("E", 1, 0), ("S", 0, 1), ("W", -1, 0))
 
 _shapes = {}
 _trails = {}                 # hex -> (signature, [(east, north) nm]) so trig runs once per report
-_zoom = {"rng": None, "ms": 0}
+_zoom = {"view": None, "ms": 0}     # the scope as drawn, (radius nm, east nm, north nm of home), gliding toward its goal
+_view = {"on": False, "x": 0.0, "y": 0.0, "follow": False, "aim": None, "down": None}      # the zoom: where the scope is headed, and B going down
 _rim = {}                    # hex -> bezel facts that only change with the bearing, so trig runs once per move
 _GLOW = [int(255 * (1.0 - s / 360.0) ** 2) for s in range(360)]       # 0..255 per degree since the beam passed
 
@@ -47,6 +50,8 @@ class _Frame:
     turn = 0                 # whole degrees the beam has turned
     now = 0
     k = 1.0                  # pixels per nautical mile
+    vx = vy = 0.0            # nm east and north of home at the scope centre
+    off = False              # the centre is away from home, so a bearing from home is not one from the centre
     home = (0.0, 0.0)
     keep = TRAIL_PTS         # trail points to draw
 
@@ -71,70 +76,138 @@ def _place(s, x, y, rot=0):
 def update(app):
     m = app.model
     metric = app.settings["metric"]
+    v = _view
 
-    if badge.pressed(BUTTON_B):
+    gap = app.now - _zoom["ms"] > 250             # an alert, another view or a blocked frame came between
+    v["down"], key = skyview.b_event(v["down"], app.now, badge.pressed(BUTTON_B), badge.held(BUTTON_B), gap)
+    if key == "tap":                              # on release, so a hold is not also a tap
         app.set_range(next((r for r in RANGES if r > m.range_nm), RANGES[0]))
-    app.nav()
+    elif key == "hold":
+        _zoom_toggle(m)
+    if v["on"]:
+        _pan(app, m)
+    else:
+        app.nav()
+    app.capture = v["on"]                         # zoomed, A and C pan instead of changing view
 
     sweep = app.sweep = (app.now % SWEEP_MS) * 360.0 / SWEEP_MS
-    rng = _zoom_range(app.now, m.range_nm)
+    sel = m.selected()
+    goal = _target(m, sel)
+    rng, vx, vy = _glide(app.now, goal)
 
     ui.topbar(app, NAME)
-    ui.hintbar(app, "RANGE", "FLIGHT")
+    if v["on"]:
+        ui.hintbar(app, "RANGE", "PAN", "LEFT", "RIGHT", hold="FULL")
+    else:
+        ui.hintbar(app, "RANGE", "FLIGHT", hold="ZOOM")
     screen.alpha = 255
     ui.cycle_bar(app)                                                      # as on WALL
 
+    f = _f
+    f.vx, f.vy, f.off = vx, vy, vx != 0.0 or vy != 0.0
+    r2 = rng * rng
     # Everything reported is drawn from one scale, so a range change slides
     # aircraft across the rim instead of popping them in and out.
     inside, rim = [], []
     for a in m.order + m.outer:                   # nearest first
-        (inside if a.dist <= rng else rim).append(a)
+        ex, ey = a.dx - vx, a.dy - vy
+        (inside if ex * ex + ey * ey <= r2 else rim).append(a)
 
-    sel = m.selected()
-    f = _f
     f.turn, f.now, f.k, f.home = int(sweep), app.now, R / rng, m.home
     f.keep = TRAIL_PTS if len(inside) <= 16 else 3            # a crowded sky gets shorter trails
     sel_xy = tag = None
+    sel_in = False
     if sel:
-        sel_xy = _xy(sel) if sel.dist <= rng else _rim_xy(sel)
+        ex, ey = sel.dx - vx, sel.dy - vy
+        sel_in = ex * ex + ey * ey <= r2
+        sel_xy = _xy(sel) if sel_in else _rim_xy(sel)
         tag = _tag(sel, sel_xy[0], sel_xy[1], metric)
 
-    _face(m.range_nm, metric, tag)
+    _face(goal[0], metric, tag)
+    hidden = _home_mark(tag)
     _wedge(sweep)
     for i in range(len(inside) - 1, -1, -1):      # the nearest draws last, on top
         a = inside[i]
         if a is not sel:
             x, y = _xy(a)
             _blip(a, x, y, False, i < FULL_BLIPS)
-    if sel and sel.dist <= rng:
+    if sel and sel_in:
         _blip(sel, sel_xy[0], sel_xy[1], True, True)
-    hidden = 0
-    for i in range(len(rim)):
-        a = rim[i]
-        e = _rim_pos(a)
-        _rim_marker(a, e, (f.turn - e[6]) % 360, i < FULL_RIM, a is sel)
-        hidden |= e[5]                            # a compass mark next to a marker is left out
+    if f.off:                                     # the bezel shows bearings from home: panned away, it keeps only the selection
+        if sel and not sel_in:
+            _rim_marker(sel, sel_xy[0], sel_xy[1], 0, False, True, True)
+            hidden |= skyview.compass_bit(_bearing(sel, sel_xy[0], sel_xy[1]))
+    else:
+        for i in range(len(rim)):
+            a = rim[i]
+            e = _rim_pos(a)
+            _rim_marker(a, e[2], e[3], (f.turn - e[6]) % 360, e[4], i < FULL_RIM, a is sel)
+            hidden |= e[5]                        # a compass mark next to a marker is left out
     _compass(hidden, tag)
     screen.alpha = 255
 
     if tag:
         _lock(app, sel, sel_xy[0], sel_xy[1], tag)
     _info(app, sel, len(m.order), metric)
+    if v["on"]:                                   # last, so the tag cannot cover them
+        if not v["follow"]:
+            _crosshair()
+        ui.pill(8, 28, "zoom", GREEN_HI, GREEN_TINT)
 
 
-def _zoom_range(now, target):
-    """Displayed range in nm. It glides toward the range setting, in log steps."""
+def _zoom_toggle(m):
+    """Hold B: zoom in on the selection, or back out to the whole scope."""
+    v = _view
+    v["on"] = not v["on"]
+    v["x"] = v["y"] = 0.0
+    v["follow"], v["aim"] = v["on"] and m.selected() is not None, None
+    if v["on"]:
+        m.auto = False                            # as UP and DOWN: the selection is yours now
+
+
+def _pan(app, m):
+    """A, C, UP and DOWN move the view. Once it rests, a flight at the crosshair is selected and followed."""
+    v = _view
+    sx = app.repeat(BUTTON_C) - app.repeat(BUTTON_A)
+    sy = app.repeat(BUTTON_UP) - app.repeat(BUTTON_DOWN)
+    radius = m.range_nm / skyview.ZOOM
+    if sx or sy:
+        step = radius * skyview.PAN_PX / R
+        v["x"] += sx * step
+        v["y"] += sy * step
+        v["follow"], v["aim"] = False, app.now
+    elif v["aim"] is not None and app.now - v["aim"] >= skyview.AIM_MS:
+        v["aim"] = None
+        a = skyview.nearest(m.order, v["x"], v["y"], radius * skyview.AIM_PX / R)
+        if a:
+            m.select(a.hex)
+            v["follow"] = True
+
+
+def _target(m, sel):
+    """Where the scope is headed: (radius nm, east nm, north nm of home). The close-up stays inside the range circle."""
+    v = _view
+    if not v["on"]:
+        return float(m.range_nm), 0.0, 0.0
+    if v["follow"]:
+        if sel:
+            v["x"], v["y"] = sel.dx, sel.dy
+        else:
+            v["follow"] = False                   # nothing left to follow
+    v["x"], v["y"] = skyview.clamp(v["x"], v["y"], skyview.reach(m.range_nm))
+    return m.range_nm / skyview.ZOOM, v["x"], v["y"]
+
+
+def _glide(now, goal):
+    """The scope as drawn this frame: (radius nm, east nm, north nm). It glides toward the goal, the radius in log steps."""
     z = _zoom
-    target = float(max(1, target))
-    r = z["rng"]
-    if r is None or now - z["ms"] > 250:
-        r = target
+    cur = z["view"]
+    if cur is None or now - z["ms"] > 250:
+        cur = goal
     else:
-        r *= (target / r) ** ui.glide(now - z["ms"], ZOOM_HALF_MS)
-        if abs(r - target) < target * 0.004:
-            r = target
-    z["rng"], z["ms"] = r, now
-    return r
+        cur = skyview.ease(cur, goal, ui.glide(now - z["ms"], ZOOM_HALF_MS))
+    z["view"], z["ms"] = cur, now
+    return cur
 
 
 # ---- the scope ------------------------------------------------------------
@@ -143,14 +216,14 @@ def _overlaps(x1, y1, w1, h1, x2, y2, w2, h2):
     return x1 < x2 + w2 + 2 and x1 + w1 > x2 - 2 and y1 < y2 + h2 + 2 and y1 + h1 > y2 - 2
 
 
-def _face(range_nm, metric, tag):
+def _face(radius_nm, metric, tag):
     ui.disc(CX, CY, BEZEL_R, PANEL)
     ui.disc(CX, CY, R, BG_DEEP)
     ui.ring(CX, CY, R // 4, LINE)
     ui.ring(CX, CY, R // 2, LINE)
-    ui.ring(CX, CY, R, LINE_HI)
+    ui.ring(CX, CY, R, GREEN_MID if _view["on"] else LINE_HI)
     unit = " KM" if metric else " NM"
-    for nm, r, suffix in ((range_nm / 2.0, R // 2, ""), (range_nm, R, unit)):
+    for nm, r, suffix in ((radius_nm / 2.0, R // 2, ""), (radius_nm, R, unit)):
         words = ui.reach_text(nm, metric) + suffix
         w = ui.width(words, F_CAPS)
         x, y = CX - w / 2, CY + r - 15
@@ -160,7 +233,27 @@ def _face(range_nm, metric, tag):
     ui.box(CX + R - 4, CY, 4, 1, LINE_HI)
     ui.box(CX - R, CY, 4, 1, LINE_HI)
     ui.box(CX, CY + R - 4, 1, 4, LINE_HI)
-    ui.disc(CX, CY, 2, TEXT_4)
+
+
+def _home_mark(tag):
+    """Home: the grey dot where it lies, or once the scope is panned away a ring on the bezel toward it.
+    Returns the compass mark the ring covers, as a bit."""
+    f = _f
+    hx, hy = -f.vx * f.k, f.vy * f.k
+    if hx * hx + hy * hy < (R - 3) * (R - 3):
+        ui.disc(CX + hx, CY + hy, 2, TEXT_4)
+        return 0
+    x, y = _edge(-f.vx, -f.vy)
+    if tag and _overlaps(x - 4, y - 4, 8, 8, tag[0], tag[1], tag[2], TAG_H):
+        return 0                                  # a ring the tag would half cover is left out, as a compass mark is
+    ui.ring(x, y, 4, TEXT_2)
+    return skyview.compass_bit(math.degrees(math.atan2(hx, -hy)) % 360)
+
+
+def _crosshair():
+    """Panned off the selection: a cross marks where the scope is aimed."""
+    for x, y, w, h in ((CX - 6, CY, 4, 1), (CX + 3, CY, 4, 1), (CX, CY - 6, 1, 4), (CX, CY + 3, 1, 4)):
+        ui.box(x, y, w, h, TEXT_3)
 
 
 def _compass(hidden, tag):
@@ -189,7 +282,20 @@ def _wedge(angle):
 # ---- aircraft -------------------------------------------------------------
 
 def _xy(a):
-    return CX + a.dx * _f.k, CY - a.dy * _f.k
+    return CX + (a.dx - _f.vx) * _f.k, CY - (a.dy - _f.vy) * _f.k
+
+
+def _edge(ex, ey):
+    """The bezel point in the direction of an offset, in nm east and north of the scope centre."""
+    d = math.sqrt(ex * ex + ey * ey)
+    return CX + MARK_R * ex / d, CY - MARK_R * ey / d
+
+
+def _bearing(a, x, y):
+    """Whole degrees of a's bearing from the scope centre: home's own figure while the scope is centred there."""
+    if _f.off:
+        return int(math.degrees(math.atan2(x - CX, CY - y))) % 360
+    return int(a.brg)
 
 
 def _rim_pos(a):
@@ -199,14 +305,15 @@ def _rim_pos(a):
         if len(_rim) > 511:
             _rim.clear()
         b = math.radians(a.brg)
-        q = int((a.brg + 45) // 90) % 4
         e = _rim[a.hex] = (a.brg, a.trk, CX + MARK_R * math.sin(b), CY - MARK_R * math.cos(b),
                            a.trk >= 0 and abs(skygeo.turn(a.trk, a.brg + 180)) < 90,
-                           1 << q if abs(skygeo.turn(a.brg, q * 90)) < 9 else 0, int(a.brg))
+                           skyview.compass_bit(a.brg), int(a.brg))
     return e
 
 
 def _rim_xy(a):
+    if _f.off:                                    # panned away: the bearing from the scope centre, not from home
+        return _edge(a.dx - _f.vx, a.dy - _f.vy)
     e = _rim_pos(a)
     return e[2], e[3]
 
@@ -224,7 +331,7 @@ def _trail(a, x, y, col, alpha):
     screen.pen = col
     px = py = None
     for i in range(n + 1):
-        qx, qy = (CX + pts[i][0] * f.k, CY - pts[i][1] * f.k) if i < n else (x, y)
+        qx, qy = (CX + (pts[i][0] - f.vx) * f.k, CY - (pts[i][1] - f.vy) * f.k) if i < n else (x, y)
         if px is not None and (px - CX) ** 2 + (py - CY) ** 2 < R * R and (qx - CX) ** 2 + (qy - CY) ** 2 < R * R:
             screen.alpha = alpha * i // (n + 1)             # older segments fade out
             screen.line(int(px), int(py), int(qx), int(qy))
@@ -244,7 +351,7 @@ def _pulse(x, y):
 
 def _blip(a, x, y, selected, full):
     col = alt_color(a.alt)
-    since = (_f.turn - int(a.brg)) % 360                   # degrees the beam has turned since it passed
+    since = (_f.turn - _bearing(a, x, y)) % 360            # degrees the beam has turned since it passed
     alpha = 255 if selected else 95 + _GLOW[since] * 160 // 255
     emergency = a.emergency
     if not full and not emergency:                         # a crowded sky: just a dot
@@ -269,16 +376,15 @@ def _blip(a, x, y, selected, full):
     screen.alpha = 255
 
 
-def _rim_marker(a, e, since, full, selected):
+def _rim_marker(a, x, y, since, inbound, full, selected):
     """A small dart pointing along the track: bright when it is heading for home."""
-    x, y = e[2], e[3]
     emergency = a.emergency
     if emergency:
         _pulse(x, y)
     if selected or emergency:
         screen.alpha = 255
     else:
-        screen.alpha = 170 + _GLOW[since] * 85 // 255 if e[4] else 115 + _GLOW[since] * 80 // 255
+        screen.alpha = 170 + _GLOW[since] * 85 // 255 if inbound else 115 + _GLOW[since] * 80 // 255
     col = alt_color(a.alt)
     if not full and not emergency:
         ui.box(x - 1, y - 1, 2, 2, col)
@@ -343,8 +449,10 @@ def _tag_spot(x, y, w, h):
     left, right = CX - BEZEL_R, INFO_X - 8
     top, bottom = CY - BEZEL_R, CY + BEZEL_R
     spots = ((x + 15, y - 7), (x - 15 - w, y - 7), (x - w // 2, y + 15), (x - w // 2, y - 15 - h))
+    aim = _view["on"] and not _view["follow"]     # the crosshair is up: the tag keeps off the box a pick looks in
+    p = skyview.AIM_PX
     for tx, ty in spots:
-        if tx >= left and tx + w <= right and ty >= top and ty + h <= bottom:
+        if tx >= left and tx + w <= right and ty >= top and ty + h <= bottom and not (aim and _overlaps(tx, ty, w, h, CX - p, CY - p, 2 * p, 2 * p)):
             break
     return int(max(left, min(right - w, tx))), int(max(top, min(bottom - h, ty)))
 
@@ -385,7 +493,8 @@ def _info(app, a, n, metric):
             ui.caps("(0 rows)", INFO_X, 28, TEXT_3)
             ui.sans("Success.", INFO_X, 40, 20, TEXT)
             y = _lines("No rows returned", 66, 15, TEXT_2)
-            where = "nothing within %s %s of %s" % (ui.reach_text(m.range_nm, metric), "km" if metric else "nm", m.home_label or "home")
+            where = ("%d in range, filtered out" % m.hidden if m.hidden else
+                     "nothing within %s %s of %s" % (ui.reach_text(m.range_nm, metric), "km" if metric else "nm", m.home_label or "home"))
             _lines(where.upper(), y + 6, 11, TEXT_3, F_CAPS)
     else:
         row, col = ui.row_tag(m, a)
@@ -401,7 +510,7 @@ def _info(app, a, n, metric):
         _readouts(a, 108, metric)
 
     big = ui.sans("--" if waiting else "%d" % n, INFO_X, 176, 20, TEXT)
-    ui.caps("in range", INFO_X + big + 6, 186, TEXT_3)
+    ui.caps("matching" if m.active else "in range", INFO_X + big + 6, 186, TEXT_3)
     ui.caps("dist < %s %s" % (ui.reach_text(m.range_nm, metric), "km" if metric else "nm"), INFO_X, 205, TEXT_3)
 
 

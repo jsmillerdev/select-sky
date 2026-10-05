@@ -42,6 +42,7 @@ class Aircraft:
         self.speeds = []
         self.airline = None
         self.glyph = 0
+        self.cls = skydata.OTHER
         # What the report says, worked out once in load() rather than on every read.
         self.label = hex_id.upper()
         self.on_ground = self.military = False
@@ -77,6 +78,7 @@ class Aircraft:
         self.phase = _phase(self.alt, self.vr)
         self.operator = al[1] if al and al[1] else "Military" if self.military else "Private" if not al else al[0]
         self.kind = skydata.type_name(self.type) or "Unknown type"
+        self.cls = skydata.classify(self.type, row[CAT], self.flags, self.cs)
 
     def move(self, now, home):
         """Dead-reckon from the last report, then refresh offset, range and bearing."""
@@ -110,6 +112,12 @@ class Model:
         self._seq = []          # every row, in the order advance() walks them
         self._cur = 0           # where the next advance() slice starts
         self._adv_ms = 0        # when advance() last ran
+        self.want = ("all", "", "")     # the filter: class preset, airline prefix, ICAO type; "" means any
+        self.mask = skydata.ALL         # classes the preset lets through, one bit each
+        self.active = False             # the filter narrows the lists
+        self.hidden = 0                 # aircraft in range that the filter keeps out of order; 0 with no filter
+        self._alert_seen = None         # the alert alert_age() is timing
+        self._alert_ms = 0              # when that alert first showed
         self.reset_records()
 
     def reset_records(self):
@@ -155,8 +163,8 @@ class Model:
                 a = self.rows[row[HEX]] = Aircraft(row[HEX], now)
             a.load(row, now)
             a.move(now, self.home)
-            if record and a.dist <= self.range_nm:
-                # The records describe the sky you chose, not the feed's wider net.
+            if record and a.dist <= self.range_nm and self.shown(a):
+                # The records describe the sky you chose, range and filter, not the feed's wider net.
                 if a.hex not in self.seen:
                     if len(self.seen) >= SEEN_MAX:
                         self.seen = set(self.rows)
@@ -207,6 +215,9 @@ class Model:
         self.track = callsign
         hit = [a for a in self.rows.values() if a.cs == callsign] if callsign else ()
         self.tracked = hit[0] if hit else None
+        if self.active:
+            self._sort()                # a tracked flight the filter hides appears at once, and leaves at once
+            self._near = set(a.hex for a in self.order)     # following a flight is not an arrival
 
     def advance(self, now):
         """Dead-reckon a slice of the rows, so a whole sky is covered every ADVANCE_MS and no frame pays for all of it."""
@@ -222,14 +233,64 @@ class Model:
             self.tracked.move(now, self.home)
 
     def _sort(self):
-        self._seq = list(self.rows.values())
-        near = [a for a in self.rows.values() if a.dist <= self.range_nm]
-        self.outer = [a for a in self.rows.values() if a.dist > self.range_nm]
+        self._seq = list(self.rows.values())            # hidden rows still dead-reckon
+        near, outer, hidden = [], [], 0
+        for a in self._seq:
+            if self.shown(a):
+                if a.dist <= self.range_nm:
+                    near.append(a)
+                else:
+                    outer.append(a)                     # the radar rim obeys the filter too
+            elif a.dist <= self.range_nm and a.cls != skydata.OTHER:
+                hidden += 1
+        self.hidden, self.outer = hidden, outer
         self.order = sorted(near, key=lambda a: (a.on_ground, a.dist))
         if not self.order:
             self.sel = None
         elif self.selected() not in self.order:
             self.sel = self.order[0].hex
+
+    def set_filter(self, show="all", airline="", craft=""):
+        """Narrow order and outer to a class preset, one airline and one ICAO type; the three AND together.
+
+        Returns the values kept: anything unrecognised, such as junk in a saved setting, becomes the
+        neutral value. The session records restart, because they describe the sky you chose.
+        """
+        info = skydata.show_info(show) or skydata.SHOWS[0]
+        want = (info[0], airline[:3] if isinstance(airline, str) else "", craft[:4] if isinstance(craft, str) else "")
+        if want == self.want:
+            return want                                 # nothing changed: keep the records
+        self.want, self.mask = want, info[2]
+        self.active = want != ("all", "", "")
+        self.reset_records()
+        self._sort()
+        self._near = set(a.hex for a in self.order)     # a filter change is not an arrival
+        self.fresh = 0
+        return want
+
+    def shown(self, a):
+        """Whether the filter lets an aircraft into the lists. A squawking or tracked flight always gets in."""
+        if not self.active or a.emergency or (self.track and a.cs == self.track):
+            return True
+        if not (self.mask >> a.cls) & 1:
+            return False
+        if self.want[1] and not (a.airline and a.airline[0] == self.want[1]):
+            return False
+        return not self.want[2] or a.type == self.want[2]
+
+    def choices(self, key):
+        """Values the Show, Airline and Aircraft type rows step through, the neutral one first.
+
+        Airlines and types come from the aircraft in range now, whatever the filter says, so a narrow
+        pick never hides the others. Both lists are sorted: dicts and sets keep no order on the badge.
+        """
+        if key == "show":
+            return tuple(t[0] for t in skydata.SHOWS)
+        near = [a for a in self.rows.values() if a.dist <= self.range_nm and a.cls != skydata.OTHER]
+        if key == "airline":                            # airliners and heavies only: no flight schools, no military
+            got = set(a.airline[0] for a in near if a.airline and a.cls in (skydata.AIRLINER, skydata.HEAVY))
+            return ("",) + tuple(sorted(got, key=lambda p: (skydata.carrier_name(p).lower(), p)))
+        return ("",) + tuple(sorted(set(a.type for a in near if a.type)))
 
     def set_range(self, nm):
         self.range_nm = nm
@@ -263,6 +324,23 @@ class Model:
         if self.alert:
             self.acked.add(self.alert.hex)
         self.alert = next((a for a in self.rows.values() if a.emergency and a.hex not in self.acked), None)
+
+    def alert_age(self, now):
+        """Milliseconds the alert has been up. Its clock starts the first time this is asked; 0 with no alert."""
+        if self.alert is not self._alert_seen:
+            self._alert_seen, self._alert_ms = self.alert, now
+        return now - self._alert_ms if self.alert else 0
+
+    def restart_alert_clock(self):
+        """An alert still up gets its full time from now, such as after the badge wakes."""
+        self._alert_seen = None
+
+    def dismiss_alert(self):
+        """Acknowledge the alert and select its aircraft if it is listed. The auto-cycle is left running."""
+        a = self.alert
+        self.acknowledge()
+        if a in self.order:                             # one beyond the range cannot be the selection
+            self.sel = a.hex
 
     def route(self, a):
         """Route for an aircraft, or None while unknown."""

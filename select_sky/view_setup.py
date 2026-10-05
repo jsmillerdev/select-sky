@@ -15,6 +15,7 @@ import skygeo
 import skyqr
 import skyui as ui
 from skymodel import RANGES
+from skyoverlay import ALERT_MS
 from skytheme import *
 
 NAME = "SETUP"
@@ -35,14 +36,17 @@ SLEEPS = (15, 30, 60, 0)         # minutes without a button press before updates
 HOMES = [""] + sorted(skydata.AIRPORTS)         # "" is AUTO
 HOMES_EXACT = ["", skygeo.EXACT] + HOMES[1:]    # once a position is saved, EXACT comes right after AUTO
 
-ROWS = (("range", "Range"), ("units", "Units"), ("home", "Home"), ("pos", "Exact position"),
+ROWS = (("range", "Range"), ("show", "Show"), ("airline", "Airline"), ("type", "Aircraft type"),
+        ("units", "Units"), ("home", "Home"), ("pos", "Exact position"),
         ("track", "Track callsign"), ("bright", "Brightness"), ("auto_dim", "Auto dim"), ("leds", "Rear lights"),
         ("ground", "Ground traffic"), ("cycle", "Cycle"), ("live", "Live data"), ("sleep", "Pause after"),
-        ("alert", "Test alert"), ("source", "Data source"), ("about", "About"))
-SWITCHES = ("auto_dim", "leds", "ground", "live", "alert")
+        ("hold", "Hold alerts"), ("alert", "Test alert"), ("source", "Data source"), ("about", "About"))
+SWITCHES = ("auto_dim", "leds", "ground", "live", "hold", "alert")
 OPENERS = ("pos", "track", "about")             # rows that open a page instead of changing in place
 HELP = {
     "range": "How far out an aircraft counts as nearby",
+    "airline": "Only one airline, from those in range now",
+    "type": "Only one aircraft type seen in range now",
     "units": "Imperial: ft kt nm. Metric: m km/h km",
     "home": "Auto uses IP, Exact your spot, or an airport",
     "pos": "Center the radar on you. No GPS: enter it once",
@@ -54,6 +58,7 @@ HELP = {
     "cycle": "Seconds per aircraft when cycling",
     "live": "Off shows demo traffic and sends no requests",
     "sleep": "Pauses updates when no button is pressed",
+    "hold": "Squawk screen clears itself unless held",
     "alert": "Fake a 7700 squawk on the next update",
     "about": "Credits, license and data sources",
 }
@@ -159,6 +164,8 @@ def _helptext(app, key):
         return "Center the radar on you. Scan with your phone"
     if key == "home" and app.home_pick is not None:
         return "Moves home when you stop pressing B"
+    if key == "show":
+        return skydata.show_info(app.model.want[0])[3]
     return HELP[key]
 
 
@@ -174,6 +181,13 @@ def _home_text(app):
     return "Auto · " + label if label else "Auto"
 
 
+def _pick_text(code, name):
+    """'UAL · United' for a picked code, the bare code when it has no name, Any when nothing is picked."""
+    if not code:
+        return "Any"
+    return code if name == code else "%s · %s" % (code, name)
+
+
 def _value_text(app, key):
     """The right-hand text of a row."""
     s = app.settings
@@ -182,6 +196,12 @@ def _value_text(app, key):
             d, u = ui.dist_text(s["range"], True)
             return "%d nm · %s %s" % (s["range"], d, u)
         return "%d nm" % s["range"]
+    if key == "show":
+        return skydata.show_info(app.model.want[0])[1]
+    if key == "airline":
+        return _pick_text(s["airline"], skydata.carrier_name(s["airline"]))
+    if key == "type":
+        return _pick_text(s["type"], skydata.type_name(s["type"]))
     if key == "units":
         return "m km/h km" if s["metric"] else "ft kt nm"
     if key == "home":
@@ -210,6 +230,8 @@ def _value_text(app, key):
         return ("On" if s["live"] else "Off") if app.feed.can_live else "No relay"
     if key == "sleep":
         return "%d min" % s["sleep"] if s["sleep"] else "Never"
+    if key == "hold":
+        return "Until pressed" if s["hold"] else "%d sec" % (ALERT_MS // 1000)
     if key == "alert":
         if not _demo(app):
             return "Demo only"
@@ -253,6 +275,14 @@ def _change(app, key):
         st.pos = 0
     elif key == "about":
         st.about = True
+    elif key in ("show", "airline", "type"):
+        opts = app.model.choices(key)
+        if len(opts) < 2 and not s[key]:
+            app.toast("None in range now")          # nothing to pick from
+        else:
+            f = {"show": s["show"], "airline": s["airline"], "type": s["type"]}
+            f[key] = _next(opts, f[key])            # a value no longer in the list steps to the first: Any
+            app.set_filter(f["show"], f["airline"], f["type"])
     elif key == "alert":
         feed = app.feed
         feed.demo_alert = not feed.demo_alert
@@ -274,7 +304,7 @@ def _change(app, key):
             st.flip[key] = app.now
             app.feed.set_live(s["live"])
         else:
-            s[key] = not s[key]             # auto_dim, leds and ground
+            s[key] = not s[key]             # auto_dim, leds, ground and hold
             st.flip[key] = app.now
         app.save()
         if key == "ground":
@@ -379,8 +409,8 @@ def _list_input(app):
             elif first:
                 st.sel = to % n         # a fresh press wraps; a held key stops at the end
     key = ROWS[st.sel][0]
-    # Home has dozens of airports, so holding B keeps stepping; on any other row a hold must not toggle twice.
-    pressed = app.repeat(BUTTON_B) if key == "home" else badge.pressed(BUTTON_B)
+    # Rows with long lists keep stepping while B is held; on any other row a hold must not toggle twice.
+    pressed = app.repeat(BUTTON_B) if key in ("home", "show", "airline", "type") else badge.pressed(BUTTON_B)
     if pressed:
         _change(app, key)
 

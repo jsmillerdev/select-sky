@@ -10,6 +10,7 @@ TYPE_MS = 70          # per character
 WIPE_MS = 170
 WIPE_STEPS = 8
 TOAST_MS = 1700
+ALERT_MS = 10000      # how long a squawk takes over the screen, unless Hold alerts is on
 
 
 def splash(app, t):
@@ -36,13 +37,11 @@ def paused(app):
     ui.caps("press any button", 160, 204, GREEN if (app.now // 800) % 2 == 0 else GREEN_MID, ui.CENTER_X)
 
 
-def alert(app):
-    """Emergency squawk takes over the screen until B acknowledges it."""
+def alert(app, age):
+    """Emergency squawk takes over the screen. Any button clears it, as does ALERT_MS unless Hold alerts is on."""
     a = app.model.alert
-    if badge.pressed(BUTTON_B):
-        app.model.acknowledge()
-        if a in app.model.order:        # one beyond the range cannot be the selection
-            app.model.select(a.hex)
+    if badge.pressed():
+        app.dismiss_alert()
         return
     ui.box(0, 0, ui.W, ui.H, RED_TINT)
     if (app.now // 400) % 2 == 0:
@@ -56,9 +55,9 @@ def alert(app):
     alt, au = ui.alt_text(a.alt, metric)
     ui.sans(ui.sans_fit(a.label, 22, 300), 160, 140, 22, TEXT, ui.CENTER_X)
     ui.text("%s %s %s  ·  %s %s" % (d, du, ui.bearing_text(a.brg), alt, au), 160, 172, TEXT_2, F_BODY, 0, ui.CENTER_X)
-    x = 160 - 52
-    x += ui.keycap(x, 204, "B", RED) + 5
-    ui.caps("acknowledge", x, 205, TEXT_2)
+    if not app.settings["hold"]:
+        ui.bar(40, 226, 240, 3, 1 - age / ALERT_MS, RED, BG_DEEP)      # time left
+    ui.caps("press any button", 160, 205, TEXT_2, ui.CENTER_X)
 
 
 def toast(app):

@@ -316,7 +316,10 @@ def topbar(app, title):
     x = 25
     x += text("sky", x, 4, TEXT_3) + 4
     x += text("/", x, 4, TEXT_4) + 4
-    text(title.lower(), x, 4, TEXT)
+    x += text(title.lower(), x, 4, TEXT) + 8
+    cx = 0                              # where the filter chip ends, so the arrivals count never touches it
+    if app.model.active:
+        cx = x + pill(x, 4, "filter", SKY, SKY_TINT)
 
     x = W - 6
     battery(x - 16, 7, app.battery, app.charging)
@@ -337,35 +340,41 @@ def topbar(app, title):
     if status == "LIVE" or status == "DEMO":
         ping(x - pw - 8, 10.5, app.since_rows / 900.0, dot)
         if app.now - app.fresh_ms < FRESH_MS:
-            caps("+%d" % app.fresh, x - pw - 18, 5, dot, RIGHT)
+            s = "+%d" % app.fresh
+            if x - pw - 18 - width(s, F_CAPS) >= cx + 4:    # a big burst could reach the chip: the ping and lights still show it
+                caps(s, x - pw - 18, 5, dot, RIGHT)
 
 
-def _hint_layout(app, action, updown, left, right):
-    """The key legend's labels in caps, the left edge of the C label, and each centred
-    part as (key, x, label); the key is "" for the up/down pair."""
+def _hint_layout(app, action, updown, left, right, hold):
+    """The key legend's labels in caps, the left edge of the C label, and each centred part as
+    (key, x, label, x of the hold label, hold label); the key is "" for the up/down pair."""
     parts = []
     if action:
-        parts.append(("B", action.upper()))
+        parts.append(("B", action.upper(), "HOLD " + hold.upper() if hold else ""))
     if updown:
-        parts.append(("", updown.upper()))
-    total = sum((17 if k else 15) + width(v, F_CAPS) for k, v in parts) + 12 * (len(parts) - 1)
-    x = (W - total) // 2
-    placed = []
-    for k, v in parts:
-        placed.append((k, x, v))
-        x += (17 if k else 15) + width(v, F_CAPS) + 12
+        parts.append(("", updown.upper(), ""))
+    spans = [(17 if k else 15) + width(v, F_CAPS) + (6 + width(h, F_CAPS) if h else 0) for k, v, h in parts]
+    total = sum(spans) + 12 * (len(parts) - 1)
+    a_label = (left or app.view_name(-1)).upper()
     c_label = (right or app.view_name(1)).upper()
-    return (left or app.view_name(-1)).upper(), c_label, W - 6 - 13 - 4 - width(c_label, F_CAPS), placed
+    c_x = W - 6 - 13 - 4 - width(c_label, F_CAPS)
+    # A long legend sits in the room between the side labels, not in the middle of the screen.
+    x = (23 + width(a_label, F_CAPS) + c_x - total) // 2 if hold else (W - total) // 2
+    placed = []
+    for (k, v, h), span in zip(parts, spans):
+        placed.append((k, x, v, x + (17 if k else 15) + width(v, F_CAPS) + 6, h))
+        x += span + 12
+    return a_label, c_label, c_x, placed
 
 
-def hintbar(app, action=None, updown=None, left=None, right=None):
-    """Key legend. A and C step through views unless a modal view relabels them."""
-    key = (app.view, action, updown, left, right)
+def hintbar(app, action=None, updown=None, left=None, right=None, hold=None):
+    """Key legend. A and C step through views unless a modal view relabels them. hold names what holding B does."""
+    key = (app.view, action, updown, left, right, hold)
     lay = _hints.get(key)
     if lay is None:
         if len(_hints) > 48:
             _hints.clear()
-        lay = _hints[key] = _hint_layout(app, action, updown, left, right)
+        lay = _hints[key] = _hint_layout(app, action, updown, left, right, hold)
     a_label, c_label, c_x, parts = lay
     box(0, BOTTOM, W, H - BOTTOM, BG_DEEP)
     y = BOTTOM + 3
@@ -373,13 +382,15 @@ def hintbar(app, action=None, updown=None, left=None, right=None):
     text(a_label, 23, y + 1, TEXT_3, F_CAPS)
     keycap(W - 6 - 13, y, "C")
     text(c_label, c_x, y + 1, TEXT_3, F_CAPS)
-    for k, x, v in parts:
+    for k, x, v, hx, h in parts:
         if k:
             keycap(x, y, k, GREEN)
         else:
             tri(x + 4, y + 3.5, 2.5, TEXT_2, True)
             tri(x + 4, y + 9.5, 2.5, TEXT_2, False)
         text(v, x + (17 if k else 15), y + 1, TEXT_2, F_CAPS)
+        if h:
+            text(h, hx, y + 1, TEXT_3, F_CAPS)
 
 
 def empty_state(title, hint, y=96):
@@ -394,9 +405,13 @@ def no_rows(app, y=96):
     if app.feed.rows_ms is None:
         empty_state("Running...", app.feed.note, y)
     else:
-        r, unit = dist_text(app.model.range_nm, app.settings["metric"])
+        m = app.model
+        if m.hidden:
+            empty_state("Success. No rows returned", "%d in range, filtered out" % m.hidden, y)
+            return
+        r, unit = dist_text(m.range_nm, app.settings["metric"])
         r = r[:-2] if r.endswith(".0") else r
-        empty_state("Success. No rows returned", "Nothing within %s %s of %s" % (r, unit, app.model.home_label or "home"), y)
+        empty_state("Success. No rows returned", "Nothing within %s %s of %s" % (r, unit, m.home_label or "home"), y)
 
 
 def bearing_text(brg):

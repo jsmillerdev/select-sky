@@ -15,27 +15,56 @@ Unofficial. Not for navigation.
   <img src="branding/badge/hero-radar.png" width="45%" alt="The SELECT badge on its lanyard, showing the Select Sky radar view">
   <img src="branding/badge/hero-radar-left.png" width="45%" alt="The same badge seen from an angle">
 </p>
-<p align="center"><sub>3D renders from the badge.select simulator, with live traffic near San Francisco.</sub></p>
+<p align="center"><sub>3D renders from the badge.select simulator, with live traffic near London.</sub></p>
 
 ## Views
 
 | View | What you get |
 | --- | --- |
 | **Wall** | One aircraft as a name plate: airline, callsign, route, altitude, speed, track and vertical speed. |
-| **Radar** | A scope with a rotating sweep. Aircraft sit at their true position, colored by altitude. |
+| **Radar** | A scope with a rotating sweep. Aircraft sit at their true position, colored by altitude. Hold **B** to zoom in, then pan. |
 | **Board** | The sky as a table. Sort it by distance, altitude, speed or callsign. |
 | **Track** | Where to look for one flight, its altitude and speed history, and its route. |
 | **Stats** | Counts, records, an altitude histogram and top airlines for the session. |
-| **Setup** | Range, units, your position, a callsign to follow, brightness and rear lights. |
+| **Setup** | Range, a filter for what to show, units, your position, a callsign to follow, brightness and rear lights. |
 
 When an aircraft sends an emergency transponder code (7500, 7600 or 7700), an
-alert fills the screen and the rear lights flash until you acknowledge it.
+alert fills the screen and the rear lights flash. The alert clears itself after
+10 seconds, or sooner when you press any button. To keep it until a press, turn
+on **Hold alerts** in Setup.
+
+### Filter the sky
+
+Three rows in Setup narrow what every view shows:
+
+- **Show:** All aircraft, Big only (airliners, wide-bodies and military),
+  Airliners only, Heavies only (wide-bodies such as the A350 and 777), Military
+  only, or Small only (light aircraft, helicopters and business jets).
+- **Airline:** one airline, picked from those in range.
+- **Aircraft type:** one type, such as A359, picked from those in range.
+
+The three combine. A **Filter** chip shows in the top bar while any of them is
+on. A flight you track and an aircraft that sends an emergency code always
+show. The class is a best guess from the aircraft's type, category and
+callsign: [DETAILS.md](DETAILS.md#filter-and-zoom) explains how.
+
+### Zoom the radar
+
+On the Radar view, hold **B** to zoom in 2.5 times on the selected flight. While
+zoomed:
+
+- **A**, **C**, **UP** and **DOWN** pan the picture.
+- Rest the crosshair on a flight to select it. The view then follows that
+  flight.
+- Tap **B** to change the range, as before.
+- Hold **B** again to return to the full scope. **A** and **C** then change
+  views again.
 
 ### Every screen
 
 <table>
 <tr>
-  <td align="center"><img src="branding/screens/wall.png" width="260" alt="Wall view: flight UAL1736, Denver to Kahului, with altitude, speed, track and vertical speed"><br><sub>Wall</sub></td>
+  <td align="center"><img src="branding/screens/wall.png" width="260" alt="Wall view: flight EIN63N, Dublin to Brussels, with altitude, speed, track and vertical speed"><br><sub>Wall</sub></td>
   <td align="center"><img src="branding/screens/radar.png" width="260" alt="Radar view: a sweep over aircraft colored by altitude, with the selected flight's details"><br><sub>Radar</sub></td>
   <td align="center"><img src="branding/screens/board.png" width="260" alt="Board view: a table of aircraft sorted by altitude"><br><sub>Board</sub></td>
 </tr>
@@ -50,17 +79,19 @@ alert fills the screen and the rear lights flash until you acknowledge it.
   <td align="center"><img src="branding/screens/callsign.png" width="260" alt="Callsign editor: one character per slot"><br><sub>Track callsign</sub></td>
 </tr>
 <tr>
-  <td align="center"><img src="branding/screens/alert.png" width="260" alt="Squawk alert: code 7700, general emergency, with the aircraft's distance and altitude"><br><sub>Squawk alert</sub></td>
+  <td align="center"><img src="branding/screens/alert.png" width="260" alt="Squawk alert: code 7700, general emergency, with the aircraft's distance and altitude and a bar that shows the time left"><br><sub>Squawk alert</sub></td>
   <td align="center"><img src="branding/screens/about.png" width="260" alt="About page: license, status and data sources"><br><sub>About</sub></td>
   <td align="center"><img src="branding/screens/splash.png" width="260" alt="Startup screen: the Supabase bolt above the query select * from sky;"><br><sub>Startup</sub></td>
 </tr>
 <tr>
   <td align="center"><img src="branding/screens/paused.png" width="260" alt="Paused screen: updates have stopped until a button is pressed"><br><sub>Paused</sub></td>
+  <td align="center"><img src="branding/screens/filter.png" width="260" alt="Setup with Show set to Heavies only: a Filter chip in the top bar and a note that 5 of 26 aircraft are shown"><br><sub>Filter</sub></td>
+  <td align="center"><img src="branding/screens/radar-zoom.png" width="260" alt="Radar zoomed in on one flight, with a Zoom label and aircraft in a line on approach"><br><sub>Radar, zoomed</sub></td>
 </tr>
 </table>
 
-Captures from the badge.select simulator. Each view shows live traffic near San
-Francisco. The alert is the app's test alert, on demo traffic.
+Captures from the badge.select simulator. The views show live traffic near
+London. The alert is the app's test alert, on demo traffic.
 
 <p align="center">
   <img src="branding/badge/device-radar.png" width="32%" alt="Radar view on the badge">
@@ -74,6 +105,7 @@ Francisco. The alert is the app's test alert, on demo traffic.
 | --- | --- |
 | **A** / **C** | Previous view / next view |
 | **B** | The action named in the bottom bar |
+| **B**, held | On Radar: zoom in on the selected flight, or return to the full scope |
 | **UP** / **DOWN** | Select an aircraft, or move through rows |
 | **HOME** | Return to the launcher |
 
@@ -170,7 +202,7 @@ editor where you type the coordinates.
 ## Develop
 
 ```sh
-python3 tests/test_logic.py              # maths, model, feeds and QR codes
+python3 tests/test_logic.py              # maths, model, filter, feeds and QR codes
 python3 scripts/package.py select_sky    # builds dist/select_sky.zip
 ```
 
@@ -187,10 +219,11 @@ privacy notes, and how to run the relay locally.
 
 ## Status
 
-Select Sky was developed and tested in the badge.select simulator. It has also
-run on one physical SELECT badge: it launched, joined Wi-Fi and showed live
-aircraft through the relay. Parts of it are untested on hardware, including the
-phone flow and calling the feeds without a relay.
+Select Sky was developed in the badge.select simulator and tested on one
+physical SELECT badge with a relay. Its owner reports that everything works well
+there. The filter, the self-clearing alert and the radar zoom were added after
+that test and have run only in the simulator. Calling the feeds without a relay
+is untested on hardware.
 [DETAILS.md](DETAILS.md#status) lists what is verified and what is not.
 
 ## Credits

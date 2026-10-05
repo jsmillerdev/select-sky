@@ -1,6 +1,6 @@
 """Lookup tables for Select Sky: airlines, aircraft types, airports.
 
-Pure data plus three small functions, with no imports, so it loads on the badge as is.
+Pure data plus a few small functions, with no imports, so it loads on the badge as is.
 Names are ASCII because the pixel fonts have no accents. Airline colours are brand
 colours darkened until white text on them has WCAG contrast of at least 4.5.
 Codes were checked against OpenFlights and Virtual Radar Server airline lists, types
@@ -10,7 +10,9 @@ against the ICAO Doc 8643 designators, and airports against OurAirports.
 # ICAO callsign prefix: (name, IATA code, brand colour)
 AIRLINES = {
     "AAL": ("American", "AA", (0, 114, 198)),
+    "AAR": ("Asiana", "OZ", (200, 16, 38)),
     "AAY": ("Allegiant", "G4", (0, 76, 151)),
+    "ABX": ("ABX Air", "GB", (0, 56, 112)),
     "ABY": ("Air Arabia", "G9", (200, 20, 35)),
     "ACA": ("Air Canada", "AC", (196, 18, 48)),
     "AEA": ("Air Europa", "UX", (0, 62, 140)),
@@ -25,6 +27,7 @@ AIRLINES = {
     "ARG": ("Aerolineas Arg.", "AR", (0, 100, 150)),
     "ASA": ("Alaska", "AS", (1, 66, 106)),
     "ASH": ("Mesa Airlines", "YV", (0, 60, 120)),
+    "ATN": ("Air Transport Intl", "8C", (0, 56, 112)),
     "AUA": ("Austrian", "OS", (200, 18, 38)),
     "AVA": ("Avianca", "AV", (200, 30, 40)),
     "AXB": ("Air India Exp.", "IX", (200, 30, 40)),
@@ -33,8 +36,12 @@ AIRLINES = {
     "BAW": ("British Airways", "BA", (7, 90, 170)),
     "BCS": ("EAT Leipzig", "QY", (200, 12, 20)),
     "BEL": ("Brussels Air.", "SN", (0, 35, 100)),
+    "BKP": ("Bangkok Airways", "PG", (0, 80, 160)),
     "BOX": ("AeroLogic", "3S", (200, 12, 20)),
+    "CAL": ("China Airlines", "CI", (200, 20, 80)),
+    "CBJ": ("Beijing Capital", "JD", (190, 22, 40)),
     "CCA": ("Air China", "CA", (200, 16, 32)),
+    "CEB": ("Cebu Pacific", "5J", (0, 80, 160)),
     "CES": ("China Eastern", "MU", (0, 64, 148)),
     "CFE": ("BA CityFlyer", "CJ", (20, 50, 118)),
     "CFG": ("Condor", "DE", (140, 108, 0)),
@@ -44,6 +51,8 @@ AIRLINES = {
     "CPA": ("Cathay Pacific", "CX", (0, 98, 92)),
     "CQH": ("Spring Airlines", "9C", (0, 120, 60)),
     "CSN": ("China Southern", "CZ", (0, 80, 160)),
+    "CSZ": ("Shenzhen Air", "ZH", (200, 16, 32)),
+    "CXA": ("Xiamen Air", "MF", (0, 80, 160)),
     "DAL": ("Delta", "DL", (200, 16, 46)),
     "DHK": ("DHL Air UK", "D0", (200, 12, 20)),
     "DLH": ("Lufthansa", "LH", (5, 22, 77)),
@@ -54,6 +63,7 @@ AIRLINES = {
     "EJU": ("easyJet Europe", "EC", (190, 70, 0)),
     "ELY": ("El Al", "LY", (0, 56, 130)),
     "ENY": ("Envoy Air", "MQ", (0, 64, 128)),
+    "ESR": ("Eastar Jet", "ZE", (190, 20, 30)),
     "ETD": ("Etihad", "EY", (150, 104, 48)),
     "ETH": ("Ethiopian", "ET", (0, 110, 60)),
     "EVA": ("EVA Air", "BR", (0, 115, 70)),
@@ -61,10 +71,13 @@ AIRLINES = {
     "EXS": ("Jet2", "LS", (196, 16, 34)),
     "EZS": ("easyJet Swiss", "DS", (190, 70, 0)),
     "EZY": ("easyJet", "U2", (190, 70, 0)),
+    "FDB": ("flydubai", "FZ", (180, 70, 0)),
     "FDX": ("FedEx", "FX", (77, 20, 140)),
     "FFT": ("Frontier", "F9", (0, 110, 56)),
     "FIN": ("Finnair", "AY", (10, 30, 110)),
+    "FLE": ("Flair", "F8", (0, 110, 56)),
     "GEC": ("Lufthansa Cargo", "LH", (5, 22, 77)),
+    "GFA": ("Gulf Air", "GF", (170, 66, 0)),
     "GIA": ("Garuda Indonesia", "GA", (0, 100, 160)),
     "GJS": ("GoJet", "G7", (0, 70, 130)),
     "GLO": ("Gol", "G3", (178, 72, 0)),
@@ -79,7 +92,11 @@ AIRLINES = {
     "JBU": ("JetBlue", "B6", (0, 56, 150)),
     "JIA": ("PSA Airlines", "OH", (0, 64, 115)),
     "JJA": ("Jeju Air", "7C", (190, 80, 0)),
+    "JNA": ("Jin Air", "LJ", (200, 20, 25)),
     "JST": ("Jetstar", "JQ", (190, 70, 0)),
+    "JSX": ("JSX", "XE", (170, 24, 48)),
+    "JZA": ("Jazz", "QK", (196, 18, 48)),
+    "KAC": ("Kuwait Airways", "KU", (0, 90, 150)),
     "KAL": ("Korean Air", "KE", (0, 110, 180)),
     "KLC": ("KLM Cityhopper", "WA", (0, 112, 172)),
     "KLM": ("KLM", "KL", (0, 112, 172)),
@@ -89,19 +106,26 @@ AIRLINES = {
     "LOT": ("LOT Polish", "LO", (17, 40, 95)),
     "LPE": ("LATAM Peru", "LP", (40, 30, 120)),
     "LXJ": ("Flexjet", "", (50, 52, 58)),
+    "MAC": ("Air Arabia Maroc", "3O", (200, 20, 35)),
     "MAS": ("Malaysia Air", "MH", (0, 44, 111)),
+    "MSC": ("Air Cairo", "SM", (100, 28, 120)),
     "MSR": ("EgyptAir", "MS", (0, 60, 130)),
+    "MXD": ("Batik Air Malaysia", "OD", (200, 20, 35)),
     "MXY": ("Breeze", "MX", (0, 106, 128)),
     "NAX": ("Norwegian", "DY", (200, 20, 50)),
     "NJE": ("NetJets Europe", "1I", (90, 90, 90)),
     "NOZ": ("Norwegian", "DY", (200, 20, 50)),
     "PAL": ("Philippine Air", "PR", (0, 51, 160)),
+    "PDT": ("Piedmont", "PT", (0, 114, 198)),
+    "PGT": ("Pegasus", "PC", (140, 108, 0)),
     "PIA": ("Pakistan Intl", "PK", (0, 100, 55)),
     "POE": ("Porter", "PD", (16, 38, 100)),
     "QFA": ("Qantas", "QF", (200, 0, 20)),
     "QLK": ("QantasLink", "QF", (200, 0, 20)),
     "QTR": ("Qatar Airways", "QR", (93, 6, 45)),
+    "QXE": ("Horizon Air", "QX", (1, 66, 106)),
     "RAM": ("Royal Air Maroc", "AT", (170, 20, 36)),
+    "ROU": ("Air Canada Rouge", "RV", (196, 18, 48)),
     "RPA": ("Republic Airways", "YX", (0, 66, 130)),
     "RUK": ("Ryanair UK", "RK", (10, 50, 140)),
     "RYR": ("Ryanair", "FR", (10, 50, 140)),
@@ -113,16 +137,21 @@ AIRLINES = {
     "SVA": ("Saudia", "SV", (0, 104, 60)),
     "SWA": ("Southwest", "WN", (48, 75, 180)),
     "SWR": ("Swiss", "LX", (200, 0, 20)),
+    "SWT": ("Swiftair", "WT", (0, 64, 148)),
+    "SXS": ("SunExpress", "XQ", (188, 84, 0)),
     "TAM": ("LATAM Brasil", "JJ", (40, 30, 120)),
     "TAP": ("TAP Air Portugal", "TP", (0, 108, 64)),
     "TGW": ("Scoot", "TR", (140, 108, 0)),
     "THA": ("Thai Airways", "TG", (92, 28, 120)),
     "THY": ("Turkish Airlines", "TK", (200, 16, 30)),
+    "TOM": ("TUI Airways", "BY", (200, 20, 40)),
     "TRA": ("Transavia", "HV", (0, 115, 55)),
     "TSC": ("Air Transat", "TS", (0, 80, 150)),
     "TVF": ("Transavia FR", "TO", (0, 115, 55)),
+    "TWB": ("T'way Air", "TW", (200, 20, 40)),
     "UAE": ("Emirates", "EK", (200, 16, 46)),
     "UAL": ("United", "UA", (0, 82, 165)),
+    "UCA": ("CommuteAir", "C5", (0, 82, 165)),
     "UPS": ("UPS", "5X", (100, 65, 23)),
     "VIR": ("Virgin Atlantic", "VS", (200, 16, 40)),
     "VIV": ("Viva Aerobus", "VB", (0, 120, 55)),
@@ -132,6 +161,7 @@ AIRLINES = {
     "VOI": ("Volaris", "Y4", (100, 0, 130)),
     "VOZ": ("Virgin Australia", "VA", (200, 16, 36)),
     "VXP": ("Avelo", "XP", (100, 40, 135)),
+    "WEN": ("WestJet Encore", "WR", (0, 108, 118)),
     "WJA": ("WestJet", "WS", (0, 108, 118)),
     "WZZ": ("Wizz Air", "W6", (190, 0, 98)),
 }
@@ -287,6 +317,87 @@ LIGHT = (
     "PA34", "PA38", "PA44", "PA46", "PC12", "RV6", "RV7", "RV8", "S22T", "SIRA", "SR20", "SR22",
     "TB20", "TBM7", "TBM8", "TBM9",
 )
+
+# ---- Aircraft classes: what the Show filter sorts by --------------------------------------
+AIRLINER, HEAVY, MIL, SMALL, OTHER = range(5)
+ALL = 31                        # a mask with every class set: one bit per class
+
+# key, Setup label, class mask, help strip. Order is the order B steps through.
+SHOWS = (
+    ("all", "All aircraft", ALL, "Every aircraft in range"),
+    ("big", "Big only", (1 << AIRLINER) | (1 << HEAVY) | (1 << MIL), "Airliners, heavies and military"),
+    ("airliner", "Airliners only", (1 << AIRLINER) | (1 << HEAVY), "Airliners and heavies, no military"),
+    ("heavy", "Heavies only", 1 << HEAVY, "Wide-bodies: A350, 777, 787, A380, 747"),
+    ("mil", "Military only", 1 << MIL, "Aircraft flagged military in the feed"),
+    ("small", "Small only", 1 << SMALL, "Light planes, helicopters, business jets"),
+)
+
+# ICAO type designators the emitter category cannot place. Each string starts and ends with a
+# space and has one between codes, so " B738 " is found by `in` and "B73" cannot match by accident.
+# _SMALL holds the large-cabin business jets, which send A3 or A5 like an airliner, and the
+# most common small types, for reports that carry no category.
+_AIRLINER = (
+    " A19N A20N A21N A318 A319 A320 A321 AT43 AT45 AT46 AT72 AT75 AT76 B37M B38M "
+    "B39M B3XM B712 B732 B733 B734 B735 B736 B737 B738 B739 B752 B753 BCS1 BCS3 "
+    "CRJ1 CRJ2 CRJ7 CRJ9 CRJX DH8A DH8B DH8C DH8D E120 E135 E145 E170 E190 E195 "
+    "E290 E295 E45X E75L E75S F100 MD82 MD83 MD88 MD90 SB20 SF34 "
+)
+_HEAVY = (
+    " A124 A306 A30B A310 A332 A333 A337 A338 A339 A342 A343 A345 A346 A359 A35K "
+    "A388 B741 B742 B743 B744 B748 B762 B763 B764 B772 B773 B778 B779 B77L B77W "
+    "B788 B789 B78X DC10 IL96 MD11 "
+)
+_SMALL = (
+    " AS50 B350 B407 BE20 C150 C152 C172 C182 C208 C56X C68A C700 CL30 CL35 CL60 "
+    "DA40 E545 E55P EC35 EC45 F2TH F900 FA7X FA8X G280 GA5C GA6C GA7C GA8C GL5T "
+    "GL6T GL7T GLEX GLF4 GLF5 GLF6 M20P P208 P28A P32R PA31 PA44 PC12 R44 S22T "
+    "SLG2 SR20 SR22 "
+)
+
+
+def classify(t, cat, flags, cs):
+    """Class of an aircraft from its ICAO type, emitter category, dbFlags and callsign.
+
+    The first rule that matches wins: not an aircraft, military flag, type table,
+    emitter category, callsign shape. cat must be a string, "" when unknown.
+    """
+    if cat[:1] == "C" or t in ("TWR", "GND", "SERV"):
+        return OTHER                    # surface vehicle, tower or obstacle
+    if flags & 1:
+        return MIL
+    if t:
+        k = " " + t + " "
+        if k in _AIRLINER:
+            return AIRLINER
+        if k in _HEAVY:
+            return HEAVY
+        if k in _SMALL:
+            return SMALL
+    if cat == "A5":
+        return HEAVY
+    if cat == "A3" or cat == "A4":
+        return AIRLINER
+    if cat == "B6" or cat == "B7":
+        return OTHER                    # a drone or a spacecraft; after the tables, a C182 once sent B6
+    if cat in ("A1", "A2", "A6", "A7") or cat[:1] == "B":
+        return SMALL
+    if len(cs) > 3 and cs[:3].isalpha() and cs[3].isdigit():
+        return AIRLINER                 # no category: an airline-style callsign such as UAL123
+    return SMALL if cs or t else OTHER
+
+
+def show_info(key):
+    """The SHOWS entry with this key, else None."""
+    for t in SHOWS:
+        if t[0] == key:
+            return t
+    return None
+
+
+def carrier_name(prefix):
+    """Airline name for an ICAO callsign prefix; the prefix itself when AIRLINES does not know it."""
+    hit = AIRLINES.get(prefix)
+    return hit[0] if hit else prefix
 
 
 def airline(callsign):

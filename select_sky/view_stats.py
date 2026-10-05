@@ -126,7 +126,7 @@ def _refresh(app, m, metric):
     """Rebuild what the page draws from the model. Only a new feed batch, a new range or a
     unit change alters it, so the frames in between reuse the strings and lists."""
     global _snap_key, _records, _top, _name_w
-    key = (app.feed.rows_ms, m.range_nm, len(m.order), metric, m.stats["seen"])
+    key = (app.feed.rows_ms, m.range_nm, len(m.order), metric, m.stats["seen"], m.want)
     if key == _snap_key:
         return
     _snap_key = key
@@ -148,7 +148,7 @@ def _refresh(app, m, metric):
     _records = tuple((label, v or "---", u if v else "", ui.fit(who.upper(), 64, F_CAPS) if v else "")
                      for label, v, u, who in rows)
 
-    named = [((skydata.AIRLINES.get(code) or (code,))[0].upper(), n) for code, n in m.airlines.items()]
+    named = [(skydata.carrier_name(code).upper(), n) for code, n in m.airlines.items()]
     named.sort(key=lambda kv: (-kv[1], kv[0]))
     _top = [(ui.fit(name, 96, F_CAPS), n) for name, n in named[:TOP_AIRLINES]]
     _name_w = int(ui.width(str(_top[0][1]), F_CAPS)) if _top else 0
@@ -160,7 +160,7 @@ def _traffic(app, m, k):
     _refresh(app, m, metric)
     _caption("select count(*) from sky")
     st = m.stats
-    for x, label, sub, n in ((8, "IN RANGE", "NOW", len(m.order)), (112, "SEEN", "SESSION", st["seen"]),
+    for x, label, sub, n in ((8, "MATCHING" if m.active else "IN RANGE", "NOW", len(m.order)), (112, "SEEN", "SESSION", st["seen"]),
                              (216, "PEAK", "AT ONCE", st["peak"])):
         _tile(x, label, "---" if waiting else ui.commas(n), TEXT_4 if waiting else TEXT, sub)
     _histogram(m, metric, k, waiting)
@@ -198,7 +198,7 @@ def _histogram(m, metric, k, waiting):
     ui.caps(ends[1], HX + 4 * PITCH - 2, BASE_Y + 6, TEXT_3, ui.CENTER_X)
     ui.caps(ends[2], HX + BANDS * PITCH - 3, BASE_Y + 6, TEXT_3, ui.RIGHT)
     if not peak:
-        ui.text("Running..." if waiting else "No aircraft in range" if not m.order else "Altitude unknown",
+        ui.text("Running..." if waiting else ("No matching aircraft" if m.active else "No aircraft in range") if not m.order else "Altitude unknown",
                 HX + (BANDS * PITCH - 3) / 2, BASE_Y - 25, TEXT_4, F_BODY, 0, ui.CENTER_X)
 
 

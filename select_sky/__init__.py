@@ -28,9 +28,10 @@ badge.default_clear = skytheme.BG
 VIEWS = (view_wall, view_radar, view_board, view_track, view_stats, view_setup)
 SETTINGS = {"range": 25, "metric": False, "bright": 85, "auto_dim": False, "leds": True,
             "ground": False, "cycle": 7, "track": "", "track_cfg": "", "home": "", "pos": None,
-            "live": True, "sleep": 30}
+            "live": True, "sleep": 30, "show": "all", "airline": "", "type": "", "hold": False}
 CYCLE_TOP = 5                 # auto mode steps through this many of the nearest
 HOME_SETTLE_MS = 700          # a Home pick applies this long after the last one, so a run of presses is one move
+SAVE_SETTLE_MS = 700          # a Show, Airline or Aircraft type pick saves this long after the last press
 SPLASH_MIN_MS = 2300
 SPLASH_MAX_MS = 6000
 
@@ -39,12 +40,16 @@ class App:
     def __init__(self):
         self.settings = dict(SETTINGS)
         State.load("select_sky", self.settings)
+        for k, v in SETTINGS.items():
+            self.settings.setdefault(k, v)              # a save made before a setting existed gets its default
         # config.TRACK replaces the saved callsign only when you edit it; a Setup choice wins otherwise.
         if self.settings["track_cfg"] != config.TRACK:
             self.settings["track"] = self.settings["track_cfg"] = config.TRACK
         self.model = Model()
         self.model.range_nm = self.settings["range"]
         self.model.set_track(self.settings["track"])
+        s = self.settings
+        s["show"], s["airline"], s["type"] = self.model.set_filter(s["show"], s["airline"], s["type"])
         self.feed = Feed(self.model, self.settings)
         self.hw = Hardware()
         names = [v.NAME for v in VIEWS]
@@ -68,6 +73,7 @@ class App:
         self._rows_ms = None
         self.home_pick = None         # airport picked in Setup but not yet applied; "" is AUTO
         self._home_ms = 0
+        self._save_ms = None
         self._repeat_ms = 0
         self._frame_ms = 16.0
         self.input_ms = 0             # when a button was last pressed; the app pauses sleep minutes later
@@ -119,6 +125,17 @@ class App:
         self.feed.refresh()
         self.save()
 
+    def set_filter(self, show, airline, craft):
+        s, m = self.settings, self.model
+        s["show"], s["airline"], s["type"] = m.set_filter(show, airline, craft)
+        self._save_ms = self.now                    # holding B steps fast: save once the presses stop
+        self.toast("%d of %d shown" % (len(m.order), len(m.order) + m.hidden))
+
+    def dismiss_alert(self):
+        self.model.dismiss_alert()
+        self.sel_ms = self.now                      # the cycle's dwell starts afresh on the squawking aircraft
+        self._repeat_ms = self.now + 380            # the press that cleared it is still down: it must not also step a list
+
     def set_home(self, code):
         """Pick a listed airport for home, '' for the automatic position or EXACT for the saved one.
 
@@ -166,6 +183,8 @@ class App:
         if self.asleep or (nap and now - self.input_ms >= nap):
             if self.asleep and pressed:         # the press that wakes it is not also a view key
                 self.asleep = False
+                m.restart_alert_clock()         # an alert that was up when the badge napped shows again, in full
+                self._repeat_ms = now + 380     # the press that woke it is still down: it must not also repeat as a step or a pan
                 self.feed.refresh()
             elif not self.asleep:
                 self.asleep = True
@@ -181,6 +200,9 @@ class App:
                 self.settings["home"] = code
                 self.feed.relocate()
                 self.save()
+        if self._save_ms is not None and now - self._save_ms >= SAVE_SETTLE_MS:
+            self._save_ms = None
+            self.save()
         m.advance(now)
 
         if self.feed.rows_ms != self._rows_ms:
@@ -200,8 +222,12 @@ class App:
             else:
                 skyoverlay.splash(self, t)
             return
+        age = m.alert_age(now)
+        if m.alert and not self.settings["hold"] and age >= skyoverlay.ALERT_MS:
+            self.dismiss_alert()            # time is up: the same as a press
+            age = m.alert_age(now)          # a second squawk takes the screen at once, with its own clock
         if m.alert:
-            skyoverlay.alert(self)
+            skyoverlay.alert(self, age)
             return
 
         if not self.capture:

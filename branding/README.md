@@ -217,11 +217,11 @@ Two kinds of image carry the brand: screens and badge renders. Both come from th
 - Use the portrait hero (`hero-radar.png`, 1600 × 2000) for posts and posters, the angled heroes for variety, and the device crops (1333 × 971) for documentation.
 - The badge card, QR block and lanyard in the renders are Supabase's SELECT artwork from the simulator. Keep them as rendered. Do not add marks to them or crop them into decoration.
 - Choose a render where the screen is legible and the chip reads LIVE or DEMO.
-- `badge/hero-wall.png` shows flight UAL1736, Denver to Kahului, as captured.
+- `badge/hero-wall.png` shows flight EIN63N, Dublin to Brussels, as captured.
 - `badge/front-wall.png` is the simulator's flat 2D view, scaled so its screen lands on an exact 3x. The screen pixels are the Wall capture at 3x.
 - The social cards carry "simulator render" in their fine print. Keep that wording when you adapt a card.
 
-Known mismatch: the view stills, the badge renders and the views tour show flight UAL1736 at 20:29Z. The radar loop and the social cards show SKW3440 at 14:16Z, and the other stills come from separate sessions. They come from different capture moments.
+Known mismatch: the view stills, the badge renders and the views tour show flight EIN63N at 07:49Z, over London. The radar loop and the social cards show SKW3440 at 14:16Z, near San Francisco, and predate the HOLD ZOOM label in the radar's key legend. The other stills come from separate sessions.
 
 ## Motion
 
@@ -343,7 +343,7 @@ For the five main images. Each starts with what the image is, then what it shows
 | Image | Alt text |
 | --- | --- |
 | `badge/hero-radar.png` | Simulator render of the Supabase SELECT badge on its lanyard, with the Select Sky Radar view on screen: a green sweep over aircraft colored by altitude. |
-| `badge/hero-wall.png` | Simulator render of the SELECT badge on its lanyard, with the Select Sky Wall view on screen: callsign UAL1736, a route bar and four stat tiles. |
+| `badge/hero-wall.png` | Simulator render of the SELECT badge on its lanyard, with the Select Sky Wall view on screen: callsign EIN63N, a route bar and four stat tiles. |
 | `screens/all-views.png` | Six Select Sky screens in a grid, each with a LIVE chip: Wall, Radar, Board, Track, Stats and Setup, on a dark green-black background. |
 | `social/og-card.png` | Select Sky logo and the tagline select * from sky; beside a simulator render of the SELECT badge running the Radar view. Open source, MicroPython, simulator render, unofficial. |
 | `motion/radar-loop.gif` | Animation of one full turn of the Select Sky radar sweep over aircraft colored by altitude, with the selected flight's details beside the scope. |
@@ -395,29 +395,31 @@ Paths are relative to this folder. Sizes are pixels (viewBox for SVG) and file w
 | `logo/logo-sheet.png` | 2000 × 1200 · 228 KB | Logo system overview: sizes, clear space, do not |
 | `screens/about.png` | 1280 × 960 · 10 KB | About page capture |
 | `screens/alert.png` | 1280 × 960 · 9 KB | Squawk alert capture; caption it as the alert screen |
-| `screens/all-views.png` | 2400 × 1400 · 101 KB | 3 × 2 grid of the six views |
+| `screens/all-views.png` | 2400 × 1400 · 99 KB | 3 × 2 grid of the six views |
 | `screens/board.png` | 1280 × 960 · 10 KB | Board view capture |
 | `screens/callsign.png` | 1280 × 960 · 8 KB | Callsign editor capture |
+| `screens/filter.png` | 1280 × 960 · 6 KB | Setup with the Show filter on Heavies only |
 | `screens/locate.png` | 1280 × 960 · 10 KB | Scan-to-locate capture; the QR code holds a placeholder relay |
 | `screens/paused.png` | 1280 × 960 · 6 KB | Paused screen capture |
+| `screens/radar-zoom.png` | 1280 × 960 · 17 KB | Radar view zoomed in on one flight |
 | `screens/position.png` | 1280 × 960 · 12 KB | Position editor capture |
-| `screens/radar.png` | 1280 × 960 · 22 KB | Radar view capture |
+| `screens/radar.png` | 1280 × 960 · 21 KB | Radar view capture |
 | `screens/setup.png` | 1280 × 960 · 6 KB | Setup view capture |
 | `screens/splash.png` | 1280 × 960 · 7 KB | Boot splash capture; shows the in-app Supabase bolt |
 | `screens/stats.png` | 1280 × 960 · 9 KB | Stats view capture |
 | `screens/track.png` | 1280 × 960 · 15 KB | Track view capture |
 | `screens/wall.png` | 1280 × 960 · 13 KB | Wall view capture |
-| `badge/device-board.png` | 1333 × 971 · 325 KB | Tight device crop, Board view |
-| `badge/device-radar.png` | 1333 × 971 · 370 KB | Tight device crop, Radar view |
-| `badge/device-setup.png` | 1333 × 971 · 287 KB | Tight device crop, Setup view |
-| `badge/device-stats.png` | 1333 × 971 · 308 KB | Tight device crop, Stats view |
-| `badge/device-track.png` | 1333 × 971 · 337 KB | Tight device crop, Track view |
-| `badge/device-wall.png` | 1333 × 971 · 323 KB | Tight device crop, Wall view |
-| `badge/front-wall.png` | 1548 × 1232 · 228 KB | Flat front view, Wall view, screen at exact 3x |
-| `badge/hero-radar-left.png` | 1600 × 2000 · 573 KB | Angled hero, Radar view, turned left |
-| `badge/hero-radar-right.png` | 1600 × 2000 · 491 KB | Angled hero, Radar view, turned right |
-| `badge/hero-radar.png` | 1600 × 2000 · 579 KB | Portrait hero: badge on lanyard, Radar view |
-| `badge/hero-wall.png` | 1600 × 2000 · 545 KB | Portrait hero, Wall view |
+| `badge/device-board.png` | 1333 × 971 · 328 KB | Tight device crop, Board view |
+| `badge/device-radar.png` | 1333 × 971 · 368 KB | Tight device crop, Radar view |
+| `badge/device-setup.png` | 1333 × 971 · 284 KB | Tight device crop, Setup view |
+| `badge/device-stats.png` | 1333 × 971 · 311 KB | Tight device crop, Stats view |
+| `badge/device-track.png` | 1333 × 971 · 339 KB | Tight device crop, Track view |
+| `badge/device-wall.png` | 1333 × 971 · 319 KB | Tight device crop, Wall view |
+| `badge/front-wall.png` | 1548 × 1232 · 227 KB | Flat front view, Wall view, screen at exact 3x |
+| `badge/hero-radar-left.png` | 1600 × 2000 · 571 KB | Angled hero, Radar view, turned left |
+| `badge/hero-radar-right.png` | 1600 × 2000 · 485 KB | Angled hero, Radar view, turned right |
+| `badge/hero-radar.png` | 1600 × 2000 · 578 KB | Portrait hero: badge on lanyard, Radar view |
+| `badge/hero-wall.png` | 1600 × 2000 · 544 KB | Portrait hero, Wall view |
 | `social/contest-card.png` | 1600 × 900 · 266 KB | Contest card with #SelectBadge |
 | `social/og-card.png` | 1200 × 630 · 176 KB | Open Graph card for link previews |
 | `social/readme-banner.png` | 1600 × 520 · 73 KB | README banner: logo, tagline, two screens |

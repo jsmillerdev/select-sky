@@ -6,6 +6,7 @@ Drawing, input and networking only run on the badge or in badge.select Make.
 """
 
 import ast
+import json
 import sys
 import time
 import unittest
@@ -26,14 +27,16 @@ import skydemo  # noqa: E402
 import skyfeed  # noqa: E402
 import skygeo  # noqa: E402
 import skyqr  # noqa: E402
-from skymodel import ALT, CS, HEX, LAT, LON, SEEN, Model  # noqa: E402
+import skyview  # noqa: E402
+from skymodel import ALT, CS, HEX, LAT, LON, RANGES, SEEN, Model  # noqa: E402
 
 SFO = (37.6213, -122.3790)
 OAK = (37.7213, -122.2208)
 
 
-def row(hex_id="abc123", cs="UAL1", alt=30000, gs=450, trk=90, lat=37.7, lon=-122.3, sqk="1200", seen=0, flags=0):
-    return (hex_id, cs, "B738", alt, gs, trk, 0, lat, lon, sqk, flags, 0, 0, "A3", "N1", seen)
+def row(hex_id="abc123", cs="UAL1", alt=30000, gs=450, trk=90, lat=37.7, lon=-122.3, sqk="1200", seen=0, flags=0,
+        typ="B738", cat="A3"):
+    return (hex_id, cs, typ, alt, gs, trk, 0, lat, lon, sqk, flags, 0, 0, cat, "N1", seen)
 
 
 class Geo(unittest.TestCase):
@@ -88,6 +91,79 @@ class Geo(unittest.TestCase):
         self.assertEqual(skygeo.compass(225), "SW")
         self.assertEqual(skygeo.turn(350, 10), 20)
         self.assertEqual(skygeo.turn(10, 350), -20)
+
+
+class RadarView(unittest.TestCase):
+    def test_every_range_zooms_to_a_round_radius(self):
+        for r in RANGES:
+            z = r / skyview.ZOOM
+            self.assertEqual(z, int(z))                     # 2, 4, 10, 20 and 40 nm
+            self.assertEqual(z / 2, int(z / 2))             # and the half ring reads round too
+
+    def test_the_close_up_stays_inside_the_range_circle(self):
+        for r in RANGES:
+            self.assertAlmostEqual(skyview.reach(r) + r / skyview.ZOOM, r)     # at the limit its edge meets the range circle
+
+    def test_clamp_pulls_a_centre_back_along_its_own_direction(self):
+        self.assertEqual(skyview.clamp(3.0, 4.0, 10.0), (3.0, 4.0))
+        x, y = skyview.clamp(30.0, 40.0, 10.0)
+        self.assertAlmostEqual(x, 6.0)
+        self.assertAlmostEqual(y, 8.0)
+        self.assertEqual(skyview.clamp(5.0, 0.0, 0.0), (0.0, 0.0))
+        self.assertEqual(skyview.clamp(0.0, 0.0, 0.0), (0.0, 0.0))
+
+    def test_ease_converges_without_overshoot_and_lands_exactly(self):
+        cur, goal = (25.0, 0.0, 0.0), (10.0, 12.0, -5.0)
+        last = cur[0]
+        for _ in range(60):
+            cur = skyview.ease(cur, goal, 0.3)
+            self.assertGreaterEqual(cur[0], goal[0])
+            self.assertLessEqual(cur[0], last)
+            last = cur[0]
+        self.assertEqual(cur, goal)
+        goal = (25.0, 0.0, 0.0)                              # and back out: the centre must read exactly 0, home
+        for _ in range(60):
+            cur = skyview.ease(cur, goal, 0.3)
+        self.assertEqual(cur, goal)
+
+    def test_ease_moves_the_radius_in_log_steps(self):
+        r, x, y = skyview.ease((25.0, 0.0, 0.0), (10.0, 0.0, 0.0), 0.5)
+        self.assertAlmostEqual(r, (25.0 * 10.0) ** 0.5)      # halfway in ratio, not in nm
+
+    def test_compass_bit_names_the_mark_a_marker_covers(self):
+        cb = skyview.compass_bit
+        self.assertEqual([cb(b) for b in (0, 90, 180, 270)], [1, 2, 4, 8])      # N, E, S, W
+        self.assertEqual((cb(8.9), cb(351.5), cb(359.9)), (1, 1, 1))            # within 9 degrees, across north too
+        self.assertEqual((cb(9), cb(45), cb(135), cb(351)), (0, 0, 0, 0))       # at 9 degrees and between marks it covers none
+
+    def test_b_is_a_tap_or_a_hold(self):
+        be, hold = skyview.b_event, skyview.HOLD_MS
+        self.assertEqual(be(None, 1000, True, True), (1000, None))           # B goes down
+        self.assertEqual(be(1000, 1100, False, True), (1000, None))          # still down
+        self.assertEqual(be(1000, 1150, False, False), (None, "tap"))        # up again
+        self.assertEqual(be(1000, 1000 + hold - 1, False, True), (1000, None))
+        self.assertEqual(be(1000, 1000 + hold, False, True), (None, "hold"))
+        self.assertEqual(be(None, 1000 + hold + 20, False, True), (None, None))       # a hold fires once, and its release is no tap:
+        self.assertEqual(be(None, 1000 + hold + 300, False, False), (None, None))     # the same for a press never seen going down
+        self.assertEqual(be(1000, 1000 + hold - 1, False, False), (None, "tap"))      # a release just short of a hold is a tap
+        self.assertEqual(be(1000, 3500, False, False), (None, None))         # released inside a blocked frame: tap or hold, unknown
+        self.assertEqual(be(1000, 3500, False, True), (None, "hold"))        # held through one
+        self.assertEqual(be(None, 4000, True, True, True), (None, None))     # first seen after a gap: it began somewhere in it,
+        self.assertEqual(be(None, 4100, False, True), (None, None))          # so it times nothing, however long it goes on
+        self.assertEqual(be(None, 4000, True, True, False), (4000, None))    # seen at once, it counts
+        self.assertEqual(be(1000, 1150, False, False, True), (None, "tap"))  # one seen going down just before the gap still ends as a tap
+
+    def test_nearest_picks_the_closest_flight_within_reach(self):
+        at = lambda dx, dy: SimpleNamespace(dx=dx, dy=dy)    # noqa: E731
+        a, b = at(3, 4), at(1, 1)
+        self.assertIs(skyview.nearest([a, b], 0, 0, 10), b)
+        self.assertIsNone(skyview.nearest([a, b], 20, 20, 10))
+        self.assertIs(skyview.nearest([a], 0, 0, 5), a)      # on the edge counts
+        self.assertIsNone(skyview.nearest([], 0, 0, 5))
+
+    def test_one_pan_step_lets_go_of_a_flight_and_a_pause_still_finds_one(self):
+        self.assertLess(skyview.AIM_PX, skyview.PAN_PX)                      # a step off a flight is not pulled back onto it
+        self.assertGreaterEqual(skyview.AIM_PX, skyview.PAN_PX / 2 ** 0.5)   # a flight is within reach of some stop of the grid
 
 
 class ModelTests(unittest.TestCase):
@@ -149,7 +225,7 @@ class ModelTests(unittest.TestCase):
 
     def test_selecting_out_of_range_aircraft_is_safe(self):
         self.m.ingest([row("in", lat=37.7), row("out", lat=38.4)], 0)
-        self.m.select("out")                                # as an acknowledged alert does
+        self.m.select("out")                                # as the Board and Track views can
         self.assertEqual(self.m.index(), 0)
         self.m.step(1)
         self.assertEqual(self.m.sel, "in")
@@ -198,8 +274,57 @@ class ModelTests(unittest.TestCase):
         self.m.ingest([row("ok", lat=37.7)], 50000)         # e1 left and was pruned while the alert sat
         self.assertIs(self.m.alert, a)
         self.m.acknowledge()
-        self.m.select(a.hex)                                # as skyoverlay.alert does
+        self.m.select(a.hex)                                # select() ignores an aircraft that has left
         self.assertEqual(self.m.selected().hex, "ok")
+
+    def test_alert_age_starts_at_first_ask(self):
+        self.assertEqual(self.m.alert_age(500), 0)          # nothing to time
+        self.m.ingest([row("e1", sqk="7700", lat=37.65)], 0)
+        self.assertEqual(self.m.alert_age(1000), 0)         # the clock starts when the screen first asks
+        self.assertEqual(self.m.alert_age(4000), 3000)
+
+    def test_alert_age_restarts_for_the_next_alert(self):
+        self.m.ingest([row("e1", sqk="7700", lat=37.65), row("e2", sqk="7600", lat=37.7)], 0)
+        self.assertEqual((self.m.alert_age(1000), self.m.alert_age(9000)), (0, 8000))
+        self.m.acknowledge()
+        self.assertEqual(self.m.alert.hex, "e2")
+        self.assertEqual(self.m.alert_age(9016), 0)         # the second squawk gets a whole screen of its own
+        self.assertEqual(self.m.alert_age(12016), 3000)
+
+    def test_alert_age_restarts_when_the_same_aircraft_squawks_again(self):
+        self.m.ingest([row("e1", sqk="7700", lat=37.65)], 0)
+        self.assertEqual((self.m.alert_age(1000), self.m.alert_age(5000)), (0, 4000))
+        self.m.ingest([row("e1", sqk="1200", lat=37.65)], 12000)
+        self.assertIsNone(self.m.alert)
+        self.assertEqual(self.m.alert_age(13000), 0)        # no alert, no age
+        self.m.ingest([row("e1", sqk="7700", lat=37.65)], 24000)
+        self.assertEqual(self.m.alert.hex, "e1")
+        self.assertEqual(self.m.alert_age(25000), 0)
+        self.assertEqual(self.m.alert_age(27000), 2000)
+
+    def test_restart_alert_clock_gives_the_alert_its_full_time_again(self):
+        self.m.restart_alert_clock()                        # no alert: nothing to restart
+        self.assertEqual(self.m.alert_age(500), 0)
+        self.m.ingest([row("e1", sqk="7700", lat=37.65)], 0)
+        self.assertEqual((self.m.alert_age(1000), self.m.alert_age(900000)), (0, 899000))   # the badge napped mid-alert
+        self.m.restart_alert_clock()
+        self.assertEqual(self.m.alert_age(3600000), 0)      # awake again: a fresh clock
+        self.assertEqual(self.m.alert_age(3604000), 4000)
+        self.assertEqual(self.m.alert.hex, "e1")            # restarting never dismisses it
+
+    def test_dismiss_alert_selects_a_listed_aircraft_and_keeps_auto(self):
+        self.m.ingest([row("ok", lat=37.65), row("e1", sqk="7700", lat=37.7)], 0)
+        self.assertEqual(self.m.sel, "ok")
+        self.m.dismiss_alert()
+        self.assertEqual((self.m.sel, self.m.auto, self.m.alert), ("e1", True, None))
+        self.assertEqual(self.m.acked, {"e1"})
+
+    def test_dismiss_alert_for_an_aircraft_beyond_range_leaves_the_selection(self):
+        self.m.ingest([row("ok", lat=37.65), row("e1", sqk="7700", lat=38.4)], 0)
+        self.assertEqual(self.m.alert.hex, "e1")
+        self.m.dismiss_alert()
+        self.assertEqual((self.m.sel, self.m.auto, self.m.alert), ("ok", True, None))
+        self.assertEqual(self.m.acked, {"e1"})
 
     def test_step_from_an_unlisted_selection_starts_at_the_nearest(self):
         self.m.ingest([row("in1", lat=37.65), row("in2", lat=37.7), row("out", lat=38.4)], 0)
@@ -339,6 +464,252 @@ class ModelTests(unittest.TestCase):
             self.assertIsNone(self.m.progress(a))
 
 
+class ClassifyTests(unittest.TestCase):
+    def test_fixtures(self):
+        names = {"AIRLINER": skydata.AIRLINER, "HEAVY": skydata.HEAVY, "MIL": skydata.MIL, "OTHER": skydata.OTHER,
+                 "BIZJET": skydata.SMALL, "LIGHT": skydata.SMALL, "HELI": skydata.SMALL}
+        rows = json.loads((ROOT / "tests" / "fixtures" / "aircraft_classes.json").read_text())
+        self.assertEqual(len(rows), 165)
+        wrong = [r for r in rows if skydata.classify(r[0], r[1], r[2], r[3]) != names[r[5]]]
+        self.assertEqual(wrong, [], "%d of %d fixtures differ" % (len(wrong), len(rows)))
+
+    def test_spot_rows(self):
+        c = skydata.classify
+        self.assertEqual(c("GLF6", "A3", 0, "N650GP"), skydata.SMALL)         # the type table beats the category
+        self.assertEqual(c("CL60", "A5", 0, "N39RE"), skydata.SMALL)
+        self.assertEqual(c("A333", "A0", 0, "KAL706"), skydata.HEAVY)
+        self.assertEqual(c("A359", "", 0, ""), skydata.HEAVY)
+        self.assertEqual(c("E45X", "A2", 0, "UCA4321"), skydata.AIRLINER)
+        self.assertEqual(c("DH8D", "A2", 0, "QLK123D"), skydata.AIRLINER)
+        self.assertEqual(c("C408", "A2", 0, "STT587"), skydata.SMALL)
+        self.assertEqual(c("B350", "", 8, "POL35"), skydata.SMALL)              # only bit 0 of dbFlags is military
+        self.assertEqual(c("C17", "A5", 1, "RCH168"), skydata.MIL)              # the flag beats the heavy category
+        self.assertEqual(c("BE20", "A1", 1, "CATS68"), skydata.MIL)
+        self.assertEqual(c("BE20", "A1", 0, "CATS68"), skydata.SMALL)           # the same aircraft without the flag
+        self.assertEqual(c("TWR", "", 0, ""), skydata.OTHER)
+        self.assertEqual(c("GND", "C2", 0, ""), skydata.OTHER)
+        self.assertEqual(c("", "", 0, "UAL123"), skydata.AIRLINER)              # no type, no category: the callsign shape
+        self.assertEqual(c("", "", 0, "N123AB"), skydata.SMALL)
+        self.assertEqual(c("", "", 0, ""), skydata.OTHER)
+        self.assertEqual(c("C182", "B6", 0, "UNIDENT"), skydata.SMALL)          # a Cessna once sent the drone category
+        self.assertEqual(c("VFHC", "B6", 2, ""), skydata.OTHER)
+        self.assertEqual(c("", "B1", 0, "ZKGIO"), skydata.SMALL)
+        self.assertEqual(c("", "A7", 0, "VTSDS"), skydata.SMALL)
+        for cat, cls in (("A5", skydata.HEAVY), ("A3", skydata.AIRLINER), ("A1", skydata.SMALL)):
+            self.assertEqual(c("ZZ99", cat, 0, ""), cls, cat)                   # a type no table knows: the category decides
+
+    def test_tables_are_clean(self):
+        tables = (skydata._AIRLINER, skydata._HEAVY, skydata._SMALL)
+        for t in tables:
+            self.assertTrue(t.startswith(" ") and t.endswith(" "))
+            self.assertNotIn("  ", t)
+            codes = t.split()
+            self.assertEqual(len(codes), len(set(codes)))
+            for code in codes:
+                self.assertRegex(code, r"^[A-Z0-9]{2,4}$")
+        sets = [set(t.split()) for t in tables]
+        for i in range(3):
+            for j in range(i + 1, 3):
+                self.assertEqual(sets[i] & sets[j], set())
+
+    def test_show_info(self):
+        self.assertEqual([t[0] for t in skydata.SHOWS], ["all", "big", "airliner", "heavy", "mil", "small"])
+        self.assertIsNone(skydata.show_info("nope"))
+        self.assertEqual([skydata.show_info(t[0])[2] for t in skydata.SHOWS], [31, 7, 3, 2, 4, 8])
+        for t in skydata.SHOWS:
+            self.assertLessEqual(len(t[3]), 44, t[0])
+
+    def test_carrier_name(self):
+        self.assertEqual(skydata.carrier_name("UAL"), "United")
+        self.assertEqual(skydata.carrier_name("QXE"), "Horizon Air")
+        self.assertEqual(skydata.carrier_name("XYZ"), "XYZ")                    # an unknown prefix stands for itself
+
+    def test_glyph_is_unchanged(self):
+        # The class decides what Show keeps; the glyph still comes from the type and category alone.
+        self.assertEqual(skydata.glyph("GLF6", "A3"), 0)
+        self.assertEqual(skydata.glyph("C17", "A5"), 0)
+        self.assertEqual(skydata.glyph("C172", "A1"), 1)
+        self.assertEqual(skydata.glyph("H60", "A7"), 2)
+
+
+class FilterTests(unittest.TestCase):
+    def setUp(self):
+        self.m = Model()
+        self.m.set_home(SFO[0], SFO[1], "SFO")
+
+    def sky(self):
+        return [row("ual", "UAL1892", lat=37.65, typ="B739"), row("swa", "SWA10", lat=37.66, typ="B38M"),
+                row("baw", "BAW285", lat=37.67, typ="A388", cat="A5"),
+                row("rch", "RCH871", lat=37.68, typ="C17", cat="A5", flags=1),
+                row("pip", "N4587P", lat=37.69, typ="P28A", cat="A1"),
+                row("gulf", "N650GP", lat=37.70, typ="GLF6", cat="A3"),
+                row("twr", "", lat=37.64, typ="TWR", cat="C1", alt=0),
+                row("far", "DAL158", lat=38.6, typ="A359", cat="A5")]       # beyond 25 nm: the rim
+
+    def hexes(self, rows):
+        return [a.hex for a in rows]
+
+    def test_default_lists_everything_including_other(self):
+        self.m.ingest(self.sky(), 0)
+        self.assertEqual(sorted(self.hexes(self.m.order)), sorted(["ual", "swa", "baw", "rch", "pip", "gulf", "twr"]))
+        self.assertEqual(self.hexes(self.m.outer), ["far"])
+        self.assertEqual((self.m.active, self.m.hidden), (False, 0))
+
+    def test_each_preset_keeps_its_classes(self):
+        self.m.ingest(self.sky(), 0)
+        kept = {"all": ["ual", "swa", "baw", "rch", "pip", "gulf", "twr"], "big": ["ual", "swa", "baw", "rch"],
+                "airliner": ["ual", "swa", "baw"], "heavy": ["baw"], "mil": ["rch"], "small": ["pip", "gulf"]}
+        for key, label, _mask, _help in skydata.SHOWS:
+            with self.subTest(key=key):
+                self.m.set_filter(key)
+                self.assertEqual(sorted(self.hexes(self.m.order)), sorted(kept[key]))
+                self.assertEqual(self.m.active, key != "all")
+        self.m.set_filter("big")
+        self.assertEqual(self.m.hidden, 2)                  # pip and gulf; the tower is not an aircraft you chose to hide
+
+    def test_outer_is_filtered_too(self):
+        self.m.ingest(self.sky(), 0)
+        self.m.set_filter("heavy")
+        self.assertEqual(self.hexes(self.m.outer), ["far"])
+        self.m.set_filter("small")
+        self.assertEqual(self.m.outer, [])
+
+    def test_airline_matches_the_callsign_prefix(self):
+        self.m.ingest(self.sky(), 0)
+        self.m.set_filter("all", "UAL")
+        self.assertEqual(self.hexes(self.m.order), ["ual"])     # the N-numbers have no airline prefix
+        self.m.set_filter("all", "XYZ")
+        self.assertEqual((self.m.order, self.m.sel), ([], None))
+
+    def test_type_matches_exactly(self):
+        self.m.ingest(self.sky(), 0)
+        self.m.set_filter("all", "", "B739")
+        self.assertEqual(self.hexes(self.m.order), ["ual"])
+        self.m.set_filter("all", "", "B73")
+        self.assertEqual(self.m.order, [])
+
+    def test_the_three_filters_and_together(self):
+        self.m.ingest(self.sky(), 0)
+        self.m.set_filter("heavy", "BAW")
+        self.assertEqual(self.hexes(self.m.order), ["baw"])
+        self.m.set_filter("heavy", "UAL")
+        self.assertEqual(self.m.order, [])
+        self.m.set_filter("big", "", "A388")
+        self.assertEqual(self.hexes(self.m.order), ["baw"])
+
+    def test_emergency_passes_and_alerts(self):
+        self.m.set_filter("big")
+        self.m.ingest(self.sky(), 0)
+        self.assertNotIn("pip", self.hexes(self.m.order))
+        self.m.ingest([row("pip", "N4587P", lat=37.69, typ="P28A", cat="A1", sqk="7700")], 1000)
+        self.assertIn("pip", self.hexes(self.m.order))
+        self.assertEqual(self.m.alert.hex, "pip")
+
+    def test_tracked_callsign_passes(self):
+        self.m.ingest(self.sky(), 0)
+        self.m.set_filter("big")
+        self.assertNotIn("pip", self.hexes(self.m.order))
+        self.m.set_track("N4587P")
+        self.assertIn("pip", self.hexes(self.m.order))
+        self.m.set_track("")
+        self.assertNotIn("pip", self.hexes(self.m.order))
+
+    def test_following_a_hidden_flight_is_not_an_arrival(self):
+        self.m.ingest(self.sky(), 0)
+        self.m.set_filter("heavy")
+        self.m.set_track("N4587P")                          # pip joins order, but nothing new came into range
+        self.assertIn("pip", self.hexes(self.m.order))
+        self.m.ingest(self.sky(), 12000)
+        self.assertEqual(self.m.fresh, 0)
+
+    def test_empty_callsign_is_not_the_tracked_one(self):
+        self.m.ingest(self.sky() + [row("blank", "", lat=37.71, typ="P28A", cat="A1")], 0)
+        self.m.set_filter("big")
+        self.assertEqual(self.m.track, "")
+        self.assertNotIn("blank", self.hexes(self.m.order))
+        self.m.set_track("UAL1892")
+        self.assertNotIn("blank", self.hexes(self.m.order))
+
+    def test_filtered_out_selection_moves_and_auto_stays(self):
+        self.m.ingest(self.sky(), 0)
+        self.m.sel = "pip"
+        self.m.set_filter("big")
+        self.assertEqual((self.m.sel, self.m.auto), (self.m.order[0].hex, True))
+        self.m.select("gulf")                               # a locked user stays locked, now on the nearest match
+        self.m.set_filter("heavy")
+        self.assertEqual((self.m.sel, self.m.auto), ("baw", False))
+
+    def test_filter_to_nothing_keeps_rows(self):
+        self.m.ingest(self.sky(), 0)
+        self.m.set_filter("mil", "UAL")
+        self.assertEqual((self.m.order, self.m.sel, len(self.m.rows), self.m.hidden), ([], None, 8, 6))
+        self.m.step(1)                                      # must not raise on an empty list
+
+    def test_a_filter_change_is_not_an_arrival(self):
+        self.m.ingest(self.sky(), 0)
+        self.assertEqual(self.m.fresh, 7)
+        self.m.set_filter("heavy")
+        self.assertEqual(self.m.fresh, 0)
+        self.m.ingest(self.sky(), 1000)
+        self.assertEqual(self.m.fresh, 0)
+        self.m.set_filter("all")
+        self.assertEqual(self.m.fresh, 0)
+        self.m.ingest(self.sky(), 2000)
+        self.assertEqual(self.m.fresh, 0)
+
+    def test_records_follow_the_filter(self):
+        self.m.set_filter("heavy")
+        self.m.ingest(self.sky(), 0)
+        self.assertEqual((self.m.stats["seen"], self.m.airlines), (1, {"BAW": 1}))
+        self.m.set_filter("all")
+        self.assertEqual((self.m.stats["seen"], self.m.airlines), (0, {}))
+        self.m.ingest(self.sky(), 1000)
+        self.assertEqual(self.m.stats["seen"], 7)
+
+    def test_same_values_keep_the_records(self):
+        self.m.set_filter("heavy")
+        self.m.ingest(self.sky(), 0)
+        self.m.set_filter("heavy")
+        self.assertEqual(self.m.stats["seen"], 1)
+
+    def test_range_change_keeps_the_filter(self):
+        self.m.ingest(self.sky(), 0)
+        self.m.set_filter("heavy")
+        self.assertEqual((self.hexes(self.m.order), self.hexes(self.m.outer)), (["baw"], ["far"]))
+        self.m.set_range(100)
+        self.assertEqual(self.m.want, ("heavy", "", ""))
+        self.assertEqual((self.hexes(self.m.order), self.m.outer), (["baw", "far"], []))
+
+    def test_set_filter_returns_what_it_kept(self):
+        self.assertEqual(self.m.set_filter("bogus", 5, None), ("all", "", ""))
+        self.assertEqual(self.m.set_filter("big", "UALX", "B7378"), ("big", "UAL", "B737"))
+        self.assertEqual(self.m.want, ("big", "UAL", "B737"))
+        self.assertEqual(self.m.set_filter(["big"]), ("all", "", ""))
+
+    def test_choices(self):
+        self.m.ingest(self.sky() + [row("xyz", "XYZ123", lat=37.71, typ="B738"), row("blank", "", lat=37.72, typ="", cat="A1")], 0)
+        self.assertEqual(self.m.choices("show"), ("all", "big", "airliner", "heavy", "mil", "small"))
+        for want in (("all",), ("mil",)):                   # the lists come from the unfiltered sky
+            self.m.set_filter(*want)
+            # United, Southwest and British Airways sort by name; RCH, the N-numbers and the rim aircraft are out
+            self.assertEqual(self.m.choices("airline"), ("", "BAW", "SWA", "UAL", "XYZ"))
+            self.assertEqual(self.m.choices("type"), ("", "A388", "B38M", "B738", "B739", "C17", "GLF6", "P28A"))
+
+    def test_class_follows_late_type_and_category(self):
+        self.m.ingest([row("x", "N1", typ="", cat="")], 0)
+        self.assertEqual(self.m.rows["x"].cls, skydata.SMALL)
+        self.m.ingest([row("x", "N1", typ="A388", cat="A5")], 1000)
+        self.assertEqual(self.m.rows["x"].cls, skydata.HEAVY)
+
+    def test_new_settings_are_literals(self):
+        tree = ast.parse((ROOT / "select_sky" / "__init__.py").read_text())
+        defaults = next(n.value for n in tree.body if isinstance(n, ast.Assign) and getattr(n.targets[0], "id", "") == "SETTINGS")
+        d = ast.literal_eval(defaults)
+        self.assertEqual((d["show"], d["airline"], d["type"]), ("all", "", ""))
+        self.assertIs(d["hold"], False)
+        self.assertIn(d["show"], [t[0] for t in skydata.SHOWS])
+
+
 class Demo(unittest.TestCase):
     def test_rows_are_well_formed_and_in_range(self):
         for t in (0, 12, 600, 3600, 86400):
@@ -391,6 +762,17 @@ class Demo(unittest.TestCase):
     def test_demo_squawks_are_valid_octal(self):
         for r in skydemo.rows(SFO, 0, 70):
             self.assertRegex(r[9], r"^[0-7]{4}$")
+
+    def test_demo_squawks_are_never_emergencies(self):
+        for t in (0, 600, 3600):
+            for r in skydemo.rows(SFO, t, 100):
+                self.assertNotIn(r[9], ("7500", "7600", "7700"), (t, r[1]))
+
+    def test_demo_fleet_covers_every_class(self):
+        got = set(skydata.classify(f[1], f[2], f[7], f[0]) for f in skydemo.FLEET)
+        for cls in (skydata.AIRLINER, skydata.HEAVY, skydata.MIL, skydata.SMALL):
+            self.assertIn(cls, got)
+        self.assertEqual(skydemo.FLEET[1][0], "SWA2415")        # the alert aircraft: its index must not move
 
 
 class Feeds(unittest.TestCase):

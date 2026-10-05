@@ -7,7 +7,8 @@ data goes where, and what has and has not been tested.
 ## Hardware it uses
 
 - **Screen:** 320 x 240, with antialiased vector type and shapes.
-- **Buttons:** all five, with auto-repeat on the arrows.
+- **Buttons:** all five, with auto-repeat on the arrows and a long press on B
+  in the Radar view.
 - **Rear lights:** follow the radar sweep, glow as an aircraft comes close,
   blink for a new arrival and flash for an emergency code.
 - **Light sensor:** Auto dim (off by default) lowers the backlight when the room
@@ -166,8 +167,17 @@ copy, publish `docs/` with GitHub Pages and set `LOCATE_PAGE`.
 
 ## Settings
 
-Change most settings on the badge in the **Setup** view. Two of them control
-how much the badge asks for:
+Change most settings on the badge in the **Setup** view. Four of them control
+what you see:
+
+- **Show:** All aircraft, Big only (airliners, wide-bodies and military),
+  Airliners only, Heavies only, Military only or Small only.
+- **Airline:** one airline, picked from those in range.
+- **Aircraft type:** one ICAO type such as A359, picked from those in range.
+- **Hold alerts:** off by default. Off clears a squawk alert after 10 seconds
+  or on any button press. On keeps it until a button is pressed.
+
+Two of them control how much the badge asks for:
 
 - **Live data:** on by default. Off shows demo traffic and sends no requests.
 - **Pause after:** 15, 30 or 60 minutes without a button press, or Never. The
@@ -186,6 +196,41 @@ how much the badge asks for:
 | `CONTACT` | The User-Agent a real badge sends to the feeds. |
 | `START_VIEW`, `SPLASH` | The first view, and whether to play the startup animation. |
 
+## Filter and zoom
+
+**Filter.** Show, Airline and Aircraft type combine: an aircraft must pass all
+three. The filter applies to every view, the radar rim, the counts and the
+session records, which restart when the filter changes. It sends no request.
+Two kinds of aircraft always show: the callsign you track, and any aircraft
+that sends an emergency code. A saved airline or type stays set when none is in
+range; the Filter chip and the empty-state text say so.
+
+Each aircraft gets one class:
+
+1. **Military** when the feed flags it as military. The flag wins over size, so
+   a C-17 is Military, not a heavy.
+2. Otherwise the class comes from a table of ICAO type codes, then the ADS-B
+   emitter category, then the shape of the callsign.
+3. **Small** covers light aircraft, turboprops of 19 seats or fewer, business
+   jets, helicopters and gliders. **Airliners** covers narrow-bodies and
+   regional aircraft. **Heavies** covers wide-bodies.
+4. Towers, ground vehicles and targets with no information have no class. They
+   show only while no filter is on.
+
+The class is a best guess. It was checked against two samples of real traffic,
+about 3,700 and 3,100 aircraft, and all but one aircraft in each sample landed
+in the expected class. The expected classes are judgments, and the first sample
+is mostly US traffic.
+
+**Radar zoom.** Holding B for about half a second zooms the scope in 2.5 times,
+so the outer ring is the Range setting divided by 2.5. The zoom changes only the
+picture: it sends no request and does not change Range or the lists. While
+zoomed, the view follows the selected flight until you pan. You can pan up to
+0.6 of the Range away from home, and a ring on the rim marks the direction of
+home. Aircraft outside the zoomed circle are not drawn, except the selected one,
+which sits on the rim. Rest the crosshair on a flight for a moment to select it.
+The zoom is not saved: each launch starts at the full scope.
+
 ## How it works
 
 ```text
@@ -193,20 +238,22 @@ select_sky/
   __init__.py     App object and frame loop
   config.py       Settings you edit
   skyfeed.py      Sources: Edge Function, direct feeds, demo. One request per frame at most
-  skymodel.py     Aircraft rows, dead reckoning, selection, records, alerts
+  skymodel.py     Aircraft rows, dead reckoning, selection, filter, records, alerts
   skydemo.py      Demo traffic that crosses the sky on straight tracks
   skygeo.py       Distance, bearing, elevation
-  skydata.py      Airlines, aircraft types and airports
+  skyview.py      Radar zoom and pan maths, and telling a tap from a hold
+  skydata.py      Airlines, aircraft types, aircraft classes and airports
   skyqr.py        QR code encoder for the locate screen
   skyui.py        Drawing kit and the top and bottom bars
   skytheme.py     Supabase dark palette, fonts and the altitude ramp
   skyhw.py        Rear lights, light sensor, backlight and battery
-  skyoverlay.py   Startup, emergency takeover, toasts and view transitions
+  skyoverlay.py   Startup, paused screen, emergency alert, toasts and view transitions
   view_*.py       One module per view
 supabase/functions/sky/index.ts   The relay
 supabase/migrations/              The table that holds a position until the badge collects it
 docs/index.html                   The phone page that sends a position to the relay
-tests/test_logic.py               Desktop tests for the maths, model and feeds
+tests/test_logic.py               Desktop tests for the maths, model, filter and feeds
+tests/fixtures/                   Real aircraft with the class each should get
 tests/sim/run.mjs                 Runs the packaged app in the badge.select simulator
 ```
 
@@ -284,10 +331,12 @@ run `supabase start` and `supabase functions serve`.
 ## Status
 
 Select Sky was developed and tested in the badge.select browser simulator. It
-has also run on one physical SELECT badge: it launched, joined Wi-Fi from
-`secrets.py` and showed live aircraft through the relay. Calling the feeds
-directly from a badge, with no relay, follows the firmware source but is
-untested.
+was also tested on one physical SELECT badge with a relay: it joined Wi-Fi from
+`secrets.py` and showed live aircraft through the relay, and its owner reports
+that everything works well. The aircraft filter, the self-clearing alert and the
+radar zoom were added after that test and have run only in the simulator.
+Calling the feeds directly from a badge, with no relay, follows the firmware
+source but is untested.
 
 On a real badge every update is a blocking request. The screen keeps its last
 frame, and a button press that starts and ends during the request is lost. The
@@ -295,8 +344,11 @@ frame, and a button press that starts and ends during the request is lost. The
 DNS lookup has no timeout, so a slow or failing source can hold the screen for
 longer than 8 seconds. No request has been timed on a badge.
 
-Not verified on hardware:
+Not measured or not confirmed on hardware:
 
+- **Filter, timed alert and radar zoom:** added after the hardware test. The
+  hold time for the zoom, the pan step, the frame rate while zoomed and whether
+  the saved filter survives a relaunch are unconfirmed on a badge.
 - **Auto dim:** the light sensor's polarity and range are undocumented. The app
   learns the range from what it sees, so a single bright moment can leave the
   screen dimmer indoors until you relaunch. Setup shows the live reading: cover
