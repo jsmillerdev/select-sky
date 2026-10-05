@@ -5,3 +5,5 @@ tests/sim/node_modules/
 tests/sim/out/
 __pycache__/
 .DS_Store
+# Downloaded logo sources for scripts/build_logos.py
+.cache/

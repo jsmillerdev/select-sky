@@ -5,6 +5,7 @@ import math
 from badgeware import *
 
 import skydata
+import skylogo
 import skyui as ui
 from skytheme import *
 
@@ -36,7 +37,7 @@ _air = [0.0] * TOP_AIRLINES
 _snap_key = None
 _counts = [0] * BANDS           # aircraft per altitude band
 _records = ()                   # (label, value, unit, callsign) x 3, ready to draw
-_top = []                       # (name, count) x up to TOP_AIRLINES
+_top = []                       # (ICAO prefix, name, count) x up to TOP_AIRLINES
 _name_w = 0                     # width of the widest airline count
 _note_key = None                # (text, width) of the feed note last wrapped
 _note_lines = []
@@ -148,10 +149,10 @@ def _refresh(app, m, metric):
     _records = tuple((label, v or "---", u if v else "", ui.fit(who.upper(), 64, F_CAPS) if v else "")
                      for label, v, u, who in rows)
 
-    named = [(skydata.carrier_name(code).upper(), n) for code, n in m.airlines.items()]
+    named = [(skydata.carrier_name(code).upper(), n, code) for code, n in m.airlines.items()]
     named.sort(key=lambda kv: (-kv[1], kv[0]))
-    _top = [(ui.fit(name, 96, F_CAPS), n) for name, n in named[:TOP_AIRLINES]]
-    _name_w = int(ui.width(str(_top[0][1]), F_CAPS)) if _top else 0
+    _top = [(code, ui.fit(name, 96 - 14 if skylogo.has(code) else 96, F_CAPS), n) for name, n, code in named[:TOP_AIRLINES]]
+    _name_w = int(ui.width(str(_top[0][2]), F_CAPS)) if _top else 0
 
 
 def _traffic(app, m, k):
@@ -221,10 +222,10 @@ def _airlines(k, waiting):
         if i >= len(_top):
             _air[i] = 0.0
             continue
-        name, n = _top[i]
+        code, name, n = _top[i]
         y = BOT_Y + 12 + i * 12
-        ui.caps(name, 8, y, TEXT_2)
-        ui.bar(112, y + 3, bar_w, 6, _toward(_air, i, n / _top[0][1], k), GREEN, RAISED)
+        ui.caps(name, 22 if skylogo.draw(code, 8, y - 2, 11) else 8, y, TEXT_2)
+        ui.bar(112, y + 3, bar_w, 6, _toward(_air, i, n / _top[0][2], k), GREEN, RAISED)
         ui.caps(str(n), 312, y, TEXT, ui.RIGHT)
     if not _top:
         ui.text("Running..." if waiting else "No airlines yet", 160, BOT_Y + 28, TEXT_4, F_BODY, 0, ui.CENTER_X)

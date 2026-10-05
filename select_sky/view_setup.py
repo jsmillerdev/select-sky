@@ -12,6 +12,7 @@ from badgeware import *
 import config
 import skydata
 import skygeo
+import skylogo
 import skyqr
 import skyui as ui
 from skymodel import RANGES
@@ -499,6 +500,9 @@ def _row(app, i, y, picked):
         room -= SWITCH_W + 8
     elif key == "bright":
         room -= 48                                           # the level bar sits left of the number
+    logo = app.settings["airline"] if key == "airline" and skylogo.has(app.settings["airline"]) else ""
+    if logo:
+        room -= 22
     text = _value_text(app, key)
     w = ui.width(text)
     if w > room:
@@ -511,6 +515,8 @@ def _row(app, i, y, picked):
         ui.bar(x - w - 48, y + 10, 40, 4, app.settings["bright"] / 100.0, GREEN, LINE_HI if picked else LINE)
     elif key == "track" and app.model.tracked:
         ui.disc(x - w - 9, y + 12, 2.5, GREEN)               # the flight is airborne and found
+    elif logo:
+        skylogo.draw(logo, x - w - 21, y + 4, 16)
     ui.text(text, x, y + 5, ink, F_BODY, 0, ui.RIGHT)
 
 

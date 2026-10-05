@@ -2,6 +2,7 @@
 
 from badgeware import *
 
+import skylogo
 import skyui as ui
 from skytheme import *
 
@@ -57,7 +58,9 @@ def update(app):
 
 
 def _tile(a, x, y):
-    """Airline tile: brand colour and IATA code, or a glyph for everyone else."""
+    """Airline tile: the logo, else brand colour and IATA code, or a glyph for everyone else."""
+    if a.airline and skylogo.draw(a.airline[0], x, y, 56, RAISED, 4):
+        return
     brand = a.airline[3] if a.airline else None
     ui.panel(x, y, 56, 56, color.rgb(*brand) if brand else RAISED, 8)
     code = a.airline[2] if a.airline else ""

@@ -2,6 +2,7 @@
 
 from badgeware import *
 
+import skylogo
 import skyui as ui
 from skytheme import *
 
@@ -53,7 +54,13 @@ def alert(app, age):
     metric = app.settings["metric"]
     d, du = ui.dist_text(a.dist, metric)
     alt, au = ui.alt_text(a.alt, metric)
-    ui.sans(ui.sans_fit(a.label, 22, 300), 160, 140, 22, TEXT, ui.CENTER_X)
+    if a.airline and skylogo.has(a.airline[0]):
+        label = ui.sans_fit(a.label, 22, 270)
+        x = 160 - (ui.sans_width(label, 22) + 30) // 2              # logo and callsign centred as one
+        skylogo.draw(a.airline[0], x, 141, 24)
+        ui.sans(label, x + 30, 140, 22, TEXT)
+    else:
+        ui.sans(ui.sans_fit(a.label, 22, 300), 160, 140, 22, TEXT, ui.CENTER_X)
     ui.text("%s %s %s  ·  %s %s" % (d, du, ui.bearing_text(a.brg), alt, au), 160, 172, TEXT_2, F_BODY, 0, ui.CENTER_X)
     if not app.settings["hold"]:
         ui.bar(40, 226, 240, 3, 1 - age / ALERT_MS, RED, BG_DEEP)      # time left

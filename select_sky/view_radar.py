@@ -13,6 +13,7 @@ import math
 from badgeware import *
 
 import skygeo
+import skylogo
 import skyui as ui
 import skyview
 from skymodel import RANGES
@@ -500,7 +501,8 @@ def _info(app, a, n, metric):
         row, col = ui.row_tag(m, a)
         ui.caps(row, INFO_X, 28, col)
         ui.sans(ui.sans_fit(a.label, 20, wide), INFO_X, 40, 20, TEXT)
-        ui.text(ui.fit(a.kind, wide), INFO_X, 66, TEXT_2)
+        lx = INFO_X + 20 if a.airline and skylogo.draw(a.airline[0], INFO_X, 64, 16) else INFO_X
+        ui.text(ui.fit(a.kind, INFO_R - lx), lx, 66, TEXT_2)
         if a.emergency:
             w = ui.pill(INFO_X, 84, "SQK " + a.sqk, RED, RED_TINT, ui.LEFT, RED)
         else:

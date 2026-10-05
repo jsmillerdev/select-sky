@@ -11,6 +11,7 @@ import math
 from badgeware import *
 
 import skygeo
+import skylogo
 import skyui as ui
 from skyfeed import TRACK_EVERY_MS
 from skytheme import *
@@ -184,8 +185,11 @@ def _sub(a, tag):
 
 def _header(app, a, tracking, ox):
     label, pt, w = _cached("name", a.label, _name, a.label)
-    ui.sans(label, 8 + ox, HEAD_Y + (24 - pt) // 3, pt, TEXT)
-    x = 8 + ox + w + 10
+    x = 8 + ox
+    if a.airline and skylogo.draw(a.airline[0], x, HEAD_Y + 3, 24):
+        x += 30
+    ui.sans(label, x, HEAD_Y + (24 - pt) // 3, pt, TEXT)
+    x += w + 10
     if tracking:
         x += ui.pill(x, HEAD_Y + 11, "tracking", GREEN_HI, GREEN_TINT, dot=GREEN) + 4
     else:

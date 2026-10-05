@@ -7,6 +7,7 @@ RADAR), B cycles the sort. The table is a sorted copy of model.order.
 from badgeware import *
 
 import skygeo
+import skylogo
 import skyui as ui
 from skytheme import *
 
@@ -25,7 +26,7 @@ CLIP_TABLE = rect(0, TABLE_Y, ui.W, TABLE_H)      # a row sliding past an edge i
 CLIP_ALL = rect(0, 0, ui.W, ui.H)
 
 # Columns: left edges for text, right edges for numbers. 8 px margins either side.
-X_CHIP, X_CS, CS_W = 8, 22, 64
+X_LOGO, X_CS, CS_W = 4, 24, 64     # a 16 px logo, then the callsign
 X_TYPE, TYPE_W = 90, 30
 R_ALT, R_SPD, R_DIST = 170, 228, 276
 X_BRG = 281                       # left edge of the arrow; the compass point follows it
@@ -167,14 +168,13 @@ def _row(a, y, selected, now, metric):
     if selected:
         ui.box(0, y, 2, ROW_H - 1, GREEN)
 
-    ui.panel(X_CHIP, y + 5, 6, 10, alt_color(a.alt), 2)
-    if a.military:
-        ui.disc(18, y + 10, 2, VIOLET)
+    if not (a.airline and skylogo.draw(a.airline[0], X_LOGO, y + 2, 16)):
+        ui.plane(X_LOGO + 8, y + 10, 45, VIOLET if a.military else TEXT_4, 0.8, a.glyph)
     ui.text(ui.fit(a.label, CS_W), X_CS, y + 3, RED if a.emergency else TEXT, F_BODY)
 
     ty = y + 5
     ui.text(ui.fit(a.type or "---", TYPE_W, F_CAPS), X_TYPE, ty, VIOLET if a.military else TEXT_3, F_CAPS)
-    w = ui.text(ui.flight_level(a.alt, metric), R_ALT, ty, TEXT_2, F_CAPS, 0, ui.RIGHT)
+    w = ui.text(ui.flight_level(a.alt, metric), R_ALT, ty, alt_color(a.alt), F_CAPS, 0, ui.RIGHT)
     if a.vr > 300:
         ui.tri(R_ALT - w - 6, y + 10, 3, GREEN, True)
     elif a.vr < -300:

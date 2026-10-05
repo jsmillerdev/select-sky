@@ -1670,5 +1670,27 @@ class FeedStateMachine(FeedHarness):
         self.assertEqual(f.age_s(self.t), (self.t - f.rows_ms) / 1000.0)
 
 
+class Logos(unittest.TestCase):
+    """The generated logo index against the airline table and the sheets on disk."""
+
+    def test_every_logo_names_a_known_airline_once(self):
+        import skylogodata as D
+        codes = [D.CODES[i:i + 3] for i in range(0, len(D.CODES), 3)]
+        self.assertEqual(len(codes), len(set(codes)))
+        self.assertTrue(set(codes) <= set(skydata.AIRLINES))
+        light = [D.LIGHT[i:i + 3] for i in range(0, len(D.LIGHT), 3)]
+        self.assertTrue(set(light) <= set(codes))
+
+    def test_each_sheet_exists_at_its_size(self):
+        import skylogodata as D
+        import struct
+        sheets = (len(D.CODES) // 3 + D.PER_SHEET - 1) // D.PER_SHEET
+        for size in D.SIZES:
+            for n in range(sheets):
+                head = (ROOT / "select_sky" / "logos" / ("%d_%d.png" % (size, n))).read_bytes()[:24]
+                self.assertEqual(struct.unpack(">II", head[16:24]),
+                                 (D.COLS * size, D.PER_SHEET // D.COLS * size))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
