@@ -47,25 +47,18 @@ The relay in this project, the Supabase Edge Function `supabase/functions/sky`,
 adds the headers, trims each aircraft to the 16 values the badge draws and
 caches each answer for five seconds.
 
-1. Create a Supabase project, or pick one you already use.
-2. Create the table that holds a phone's position for a few minutes. Only
-   [Set your exact position](#set-your-exact-position) needs it, so skip this
-   step if you want aircraft alone. The migration in `supabase/migrations`
-   makes the table and keeps it out of the Data API:
+1. Create a Supabase project, or pick one you already use. The Free plan is
+   enough.
+2. Deploy the function to it. Callers send no key, so it runs without JWT
+   verification. `--use-api` builds it on Supabase, so you do not need Docker:
 
    ```sh
-   supabase db push --project-ref YOUR_PROJECT_REF
+   supabase functions deploy sky --project-ref YOUR_PROJECT_REF --no-verify-jwt --use-api
    ```
 
-3. Deploy the function to it. Callers send no key, so it runs without JWT
-   verification. It reaches the table with the secret key that Supabase gives
-   every Edge Function, so you set no secret:
+   For aircraft the function needs no secrets and no database.
 
-   ```sh
-   supabase functions deploy sky --project-ref YOUR_PROJECT_REF --no-verify-jwt
-   ```
-
-4. Give the app your URL, in one of two ways:
+3. Give the app your URL, in one of two ways:
 
    - **In Make:** after you import the ZIP, choose **Files**, open `config.py`
      and set `PROXY_URL`. The change stays in your browser.
@@ -76,7 +69,17 @@ caches each answer for five seconds.
    PROXY_URL = "https://YOUR_PROJECT_REF.supabase.co/functions/v1/sky"
    ```
 
-5. Choose **Run**. The chip turns green and reads **LIVE**.
+4. Choose **Run**. The chip turns green and reads **LIVE**.
+5. Optional: create the table that holds a phone's position for a few minutes.
+   Only the phone route in [Set your exact position](#set-your-exact-position)
+   needs it, so skip this step if you want aircraft alone. The migration in
+   `supabase/migrations` makes the table and keeps it out of the Data API. The
+   function reaches it with the secret key that Supabase gives every Edge
+   Function, so you set no secret:
+
+   ```sh
+   supabase db push --project-ref YOUR_PROJECT_REF
+   ```
 
 Before you share your copy of the app, set `PROXY_URL` back to `""`. Everyone
 who runs a copy with your URL uses your relay and your Supabase quota.
@@ -143,7 +146,8 @@ only as precise as your city. To center the radar on where you stand, set an
 exact position.
 
 **With your phone.** This needs your relay (`PROXY_URL` starting with
-`https://`) and the table from [Get live aircraft](#get-live-aircraft).
+`https://`) and the optional table from step 5 of
+[Get live aircraft](#get-live-aircraft).
 
 1. On the badge, open **Setup**, pick **Exact position** and press B (LOCATE).
    The badge shows a QR code.
@@ -193,6 +197,7 @@ Two of them control how much the badge asks for:
 | `HOME` | `(latitude, longitude, "LABEL")` to pin where "nearby" is. `None` looks it up from your IP address, or uses the exact position you set in Setup. |
 | `TRACK` | A callsign to follow anywhere, such as `"UAL1"`. |
 | `POLL_S` | Seconds between updates. The feeds ask for 10 or more. |
+| `NONBLOCKING` | On a badge, fetch in the background so the screen and buttons never pause. `False` uses blocking requests. |
 | `CONTACT` | The User-Agent a real badge sends to the feeds. |
 | `START_VIEW`, `SPLASH` | The first view, and whether to play the startup animation. |
 
@@ -350,11 +355,22 @@ have the airline logos.
 Calling the feeds directly from a badge, with no relay, follows the firmware
 source but is untested.
 
-On a real badge every update is a blocking request. The screen keeps its last
-frame, and a button press that starts and ends during the request is lost. The
-8-second timeout covers each connect and read, not the whole request, and the
-DNS lookup has no timeout, so a slow or failing source can hold the screen for
-longer than 8 seconds. No request has been timed on a badge.
+On a badge whose firmware has the non-blocking `fetch.AsyncFetch` (v3.0.1 and
+later), requests run in the background across frames: the screen keeps moving
+and every button press counts. Each host keeps one connection open, so the TLS
+handshake happens once rather than on every update. Opening a connection still
+pauses briefly for the DNS lookup and the handshake, and decoding a large answer
+takes a moment. This path ran against the real firmware `fetch.py` and the live
+relay on a desktop, not yet on a badge. Set `NONBLOCKING = False` in `config.py`
+to go back to plain requests.
+
+With older firmware, or `NONBLOCKING = False`, every update is a blocking
+request. The screen keeps its last frame for the length of the request, so the
+app holds requests back while the buttons are in use and sends them once the
+buttons have rested for 2.5 seconds, at most 20 seconds late. The 8-second
+timeout covers each connect and read, not the whole request, and the DNS lookup
+has no timeout, so a slow or failing source can hold the screen for longer than
+8 seconds.
 
 Not measured or not confirmed on hardware:
 

@@ -59,7 +59,7 @@ flights and emergencies always show.
 </tr>
 </table>
 
-Simulator captures. The views show live traffic near London; the alert uses
+Simulator captures. The views show live traffic near San Francisco; the alert uses
 demo traffic. Every screen, including About, Startup and the position editor, is
 in [`branding/screens/`](branding/screens/).
 
@@ -72,18 +72,34 @@ in [`branding/screens/`](branding/screens/).
 | **UP** / **DOWN** | Select an aircraft or a row |
 | **HOME** | Back to the launcher |
 
-## Install
+## Get started
 
-**In the browser:** open [Make](https://badge.select/make), choose **Open file**,
-pick [`dist/select_sky.zip`](dist/select_sky.zip) and choose **Run**. Keys: arrows,
-**A**, **S** (B) and **D** (C). The browser shows demo traffic until you add a
-[relay](#live-aircraft).
+Pick the row that matches what you want. Each one stands on its own.
 
-**On a badge:**
+| You want | You need | Time |
+| --- | --- | --- |
+| [Try it in your browser](#1-try-it-in-your-browser) | Nothing | 1 minute |
+| [Run it on your badge](#2-run-it-on-your-badge) | The badge, a USB cable, Wi-Fi | 5 minutes |
+| [Live aircraft in the browser](#3-live-aircraft-in-the-browser) | A free Supabase account | 10 minutes |
 
-1. Connect the badge over USB and double-press RESET.
-2. Unzip [`dist/select_sky.zip`](dist/select_sky.zip) and copy `select_sky` into
-   `apps` on the TUFTY drive.
+A badge on Wi-Fi shows live aircraft by itself. Supabase is only for live
+aircraft in the browser simulator, which cannot reach the flight feeds directly.
+
+### 1. Try it in your browser
+
+1. Download [`dist/select_sky.zip`](dist/select_sky.zip).
+2. Open [Make](https://badge.select/make), choose **Open file** and pick the ZIP.
+3. Choose **Run**.
+
+The badge shows demo traffic with a **DEMO** chip. Keys: arrows, **A**, **S**
+(B) and **D** (C).
+
+### 2. Run it on your badge
+
+1. Connect the badge over USB and double-press RESET. A drive named TUFTY
+   appears.
+2. Unzip [`dist/select_sky.zip`](dist/select_sky.zip) and copy the `select_sky`
+   folder into `apps` on the TUFTY drive.
 3. If the badge has no Wi-Fi yet, add `secrets.py` at the top of the drive:
 
    ```python
@@ -91,28 +107,49 @@ pick [`dist/select_sky.zip`](dist/select_sky.zip) and choose **Run**. Keys: arro
    WIFI_PASSWORD = "your password"
    ```
 
-4. Eject, press RESET and open **Select Sky**.
+4. Eject the drive, press RESET and open **Select Sky**.
 
-A badge on Wi-Fi reads adsb.fi and adsb.lol directly and needs no relay.
+The badge finds you by IP address and reads adsb.fi and adsb.lol directly. The
+chip reads **LIVE**. No Supabase needed.
 
-## Live aircraft
+### 3. Live aircraft in the browser
 
-The public feeds send no CORS headers, so the browser simulator needs a relay.
-One ships here as a Supabase Edge Function for your own project:
+The public flight feeds do not allow web pages to read them, so the browser
+needs a relay. The relay is one Supabase Edge Function that you deploy to your
+own project. It needs no database and no secrets, and the Free plan is enough.
 
-```sh
-supabase db push --project-ref YOUR_PROJECT_REF
-supabase functions deploy sky --project-ref YOUR_PROJECT_REF --no-verify-jwt
-```
+1. Create a project at [supabase.com](https://supabase.com/dashboard). Its
+   **project ref** is the ID in the dashboard URL,
+   `supabase.com/dashboard/project/YOUR_PROJECT_REF`.
+2. Install the [Supabase CLI](https://supabase.com/docs/guides/cli/getting-started) and sign in:
 
-Then set it in `config.py` (in Make: **Files** → `config.py`):
+   ```sh
+   brew install supabase/tap/supabase
+   supabase login
+   ```
 
-```python
-PROXY_URL = "https://YOUR_PROJECT_REF.supabase.co/functions/v1/sky"
-```
+   Not on a Mac? Follow the install guide, or put `npx` in front of every
+   `supabase` command (needs Node.js).
 
-The top-bar chip changes from **DEMO** to **LIVE**. Clear `PROXY_URL` before
-sharing your copy, or others will use your relay.
+3. Get this repository and deploy the relay from its folder:
+
+   ```sh
+   git clone https://github.com/jsmillerdev/select-sky.git
+   cd select-sky
+   supabase functions deploy sky --project-ref YOUR_PROJECT_REF --no-verify-jwt --use-api
+   ```
+
+   `--use-api` builds the function on Supabase, so you do not need Docker.
+
+4. In Make, after you import the ZIP, choose **Files**, open `config.py` and set:
+
+   ```python
+   PROXY_URL = "https://YOUR_PROJECT_REF.supabase.co/functions/v1/sky"
+   ```
+
+5. Choose **Run**. The chip changes from **DEMO** to **LIVE**.
+
+Clear `PROXY_URL` before you share your copy, or others will use your relay.
 
 The relay only runs when a badge calls it. To keep usage low:
 
@@ -125,10 +162,22 @@ The relay only runs when a badge calls it. To keep usage low:
 ## Exact position
 
 The badge has no GPS, so by default it locates you by IP address. For a precise
-position, open **Setup → Exact position**, press **B** and scan the QR code with
-your phone. The phone sends its location through your relay, and the relay
-deletes it once the badge collects it. Without a relay, the same row opens a
-coordinate editor.
+position, open **Setup → Exact position** and press **B**:
+
+- **Without a relay**, a coordinate editor opens. Set each digit with UP and
+  DOWN, move with A and C, and save with B.
+- **With a relay**, a QR code appears. Scan it with your phone and allow
+  location access. To type the coordinates instead, press **C** (TYPE).
+
+**The phone route needs one small table**, where the relay parks the position
+until the badge collects it and deletes it. Create it once in the same project,
+from the repository folder:
+
+```sh
+supabase db push --project-ref YOUR_PROJECT_REF
+```
+
+Skip it if you are happy to type coordinates. Live aircraft work without it.
 
 ## Develop
 

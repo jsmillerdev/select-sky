@@ -1107,6 +1107,199 @@ class FeedPacing(FeedHarness):
         self.assertEqual(self.feed.status, "LIVE")
         self.assertTrue(all(b - a >= 2500 for a, b in zip(calls, calls[1:])), calls)
 
+    def test_requests_wait_while_the_buttons_are_in_use(self):
+        """A request blocks the badge, and a quick press that starts and ends inside it is lost."""
+        self.build()
+        self.serve({"functions/v1/sky": {"now": 1791039228, "a": [list(row("a"))]}})
+        self.pump(2000)
+        first = len(self.urls)
+        self.assertGreaterEqual(first, 1)
+        due = self.feed._next_poll
+        self.t = due - 100
+        while self.t < due + 8000:                           # a press every 600 ms across the poll's time
+            if (self.t - due) % 600 < 16:
+                self.feed.touch(self.t)
+            self.feed.tick(self.t)
+            self.t += 16
+        self.assertEqual(len(self.urls), first)              # nothing went out while the buttons were busy
+        self.pump(self.t + skyfeed.INPUT_QUIET_MS + 100)
+        self.assertEqual(len(self.urls), first + 1)          # it goes once they rest
+
+    def test_steady_pressing_still_gets_updates(self):
+        self.build()
+        self.serve({"functions/v1/sky": {"now": 1791039228, "a": [list(row("a"))]}})
+        self.pump(2000)
+        first = len(self.urls)
+        end = self.t + 60000
+        while self.t < end:                                  # never rests for a minute
+            self.feed.touch(self.t)
+            self.feed.tick(self.t)
+            self.t += 16
+        self.assertGreaterEqual(len(self.urls) - first, 2)   # held back at most INPUT_MAX_DEFER_MS at a time
+        self.assertNotEqual(self.feed.status, "STALE")
+
+    def test_a_press_after_a_job_is_armed_puts_it_off(self):
+        self.build()
+        self.serve({"functions/v1/sky": {"now": 1791039228, "a": [list(row("a"))]}})
+        self.pump(2000)
+        first = len(self.urls)
+        self.t = self.feed._next_poll
+        self.feed.tick(self.t)                               # arms the poll: the SYNC frame
+        self.assertTrue(self.feed.busy)
+        self.t += 16
+        self.feed.touch(self.t)
+        self.feed.tick(self.t)                               # the press lands before it runs
+        self.assertEqual((len(self.urls), self.feed.busy), (first, False))
+
+
+
+class FakeAsyncFetch:
+    """The firmware's fetch.AsyncFetch, enough of it: a request resolves after STEPS calls to update()."""
+    IDLE, FETCHING, DONE, ERROR = 0, 1, 2, 3
+    TIMEOUT = 10
+    STEPS = 20
+    answers = {}                # substring of host + path -> answer, an exception to raise, or a callable
+    made = []                   # every client, in order
+    log = []                    # (host, path) of every request
+
+    def __init__(self, host, port=None, use_tls=True, timeout=None):
+        self.host, self.port, self.tls = host, port, use_tls
+        self.path = self._json = self.http_status = None
+        self.left = 0
+        self.resets = 0
+        FakeAsyncFetch.made.append(self)
+
+    def on_error(self, handler):
+        self.handler = handler
+
+    def fetch(self, path, headers=None):
+        assert self.left == 0, "a fetch is already running"
+        self.path, self.left = path, self.STEPS
+        FakeAsyncFetch.log.append((self.host, path))
+
+    def update(self):
+        if self.left > 1:
+            self.left -= 1
+            return self.FETCHING
+        self.left = 0
+        url = self.host + self.path
+        for key, answer in self.answers.items():
+            if key in url:
+                if callable(answer) and not isinstance(answer, type):
+                    answer = answer(url)
+                if isinstance(answer, skyfeed.HttpError):
+                    self.http_status = answer.status
+                    assert self.handler(self) is True
+                    return self.ERROR
+                if isinstance(answer, BaseException):
+                    raise answer
+                self.http_status, self._json = 200, answer
+                return self.DONE
+        raise OSError("nothing answers " + url)
+
+    def to_json(self):
+        return self._json
+
+    def reset(self):
+        self.resets += 1
+
+
+class FeedNonBlocking(FeedHarness):
+    """Firmware with a non-blocking fetch: requests run across frames and never wait for the buttons."""
+
+    ROWS = {"now": 1791039228, "a": [list(row("a"))]}
+
+    def setUp(self):
+        FakeAsyncFetch.answers, FakeAsyncFetch.made, FakeAsyncFetch.log = {}, [], []
+        p = mock.patch.object(skyfeed, "AsyncFetch", FakeAsyncFetch)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def start(self, answers):
+        f = self.build(on_badge=True, join_ms=0)
+        FakeAsyncFetch.answers = answers
+        self.serve({})                                       # a blocking request would fail the test
+        return f
+
+    def test_a_poll_runs_across_frames(self):
+        f = self.start({"abc.supabase.co": self.ROWS, "ipwho.is": self.GEO})
+        self.pump(80)
+        self.assertTrue(f.busy)                              # under way, and the frames keep coming
+        self.assertIsNone(f.rows_ms)
+        self.pump(2000)
+        self.assertEqual(f.status, "LIVE")
+        self.assertIn("a", self.model.rows)
+        self.assertEqual(self.urls, [])                      # nothing went through the blocking path
+        self.assertEqual(FakeAsyncFetch.log[0][0], "abc.supabase.co")
+        self.assertTrue(FakeAsyncFetch.log[0][1].startswith("/functions/v1/sky?lat=37.6213&lon=-122.3790&r=37"))
+
+    def test_one_client_per_host_keeps_its_connection(self):
+        self.start({"abc.supabase.co": self.ROWS, "ipwho.is": self.GEO})
+        self.pump(40000)
+        relay = [c for c in FakeAsyncFetch.made if c.host == "abc.supabase.co"]
+        self.assertEqual(len(relay), 1)
+        self.assertGreaterEqual(sum(1 for h, _ in FakeAsyncFetch.log if h == "abc.supabase.co"), 3)
+
+    def test_buttons_do_not_hold_requests_back(self):
+        f = self.start({"abc.supabase.co": self.ROWS, "ipwho.is": self.GEO})
+        while self.t < 30000:
+            f.touch(self.t)                                  # pressing all the time
+            f.tick(self.t)
+            self.t += 16
+        self.assertGreaterEqual(sum(1 for h, _ in FakeAsyncFetch.log if h == "abc.supabase.co"), 3)
+
+    def test_rows_for_an_old_home_are_dropped(self):
+        f = self.start({"abc.supabase.co": self.ROWS, "ipwho.is": self.GEO})
+        self.pump(2000)
+        self.model.rows.clear()
+        self.t = f._next_poll
+        self.pump(self.t + 80)                               # the next poll is on its way
+        self.assertTrue(f.busy)
+        self.model.set_home(51.47, -0.45, "LHR")             # Setup moves home meanwhile
+        before = f.rows_ms
+        self.pump(self.t + 1000)
+        self.assertEqual((self.model.rows, f.rows_ms), ({}, before))
+
+    def test_a_route_arrives_beside_a_poll(self):
+        """Routes have their own lane: a selection made just before an update still gets its route at once."""
+        ports = {"_airports": [{"iata": "SFO", "lat": 37.6, "lon": -122.4}, {"iata": "ATL", "lat": 33.6, "lon": -84.4}]}
+        f = self.start({"abc.supabase.co": self.ROWS, "vrs-standing": ports})
+        self.pump(2000)
+        self.assertIn("UAL1", self.model.routes)            # the first selection's route came with the first poll
+        self.model.ingest([row("a"), row("b", cs="DAL2", lat=37.8)], self.t)
+        self.t = f._next_poll - 300
+        self.model.select("b")
+        self.pump(self.t + 1200)
+        self.assertEqual(self.model.routes["DAL2"]["d"][0], "ATL")
+        polls = sum(1 for h, _ in FakeAsyncFetch.log if h == "abc.supabase.co")
+        self.assertGreaterEqual(polls, 2)                    # and the update was not held back for it
+
+    def test_routes_for_the_next_few_are_fetched_ahead(self):
+        ports = {"_airports": [{"iata": "SFO", "lat": 37.6, "lon": -122.4}, {"iata": "ATL", "lat": 33.6, "lon": -84.4}]}
+        rows = {"now": 1791039228, "a": [list(row(h, cs=cs, lat=37.62 + i * 0.02)) for i, (h, cs) in
+                                         enumerate((("a", "UAL1"), ("b", "DAL2"), ("c", "AAL3"), ("d", "N123"), ("e", "SWA5")))]}
+        self.start({"abc.supabase.co": rows, "vrs-standing": ports})
+        self.pump(6000)
+        self.assertEqual(sorted(self.model.routes), ["AAL3", "DAL2", "SWA5", "UAL1"])     # not N123: no airline
+        routes = [p for h, p in FakeAsyncFetch.log if h.startswith("vrs-standing")]
+        self.assertEqual(len(routes), 4)                     # each once
+        self.pump(20000)
+        self.assertEqual(len([p for h, p in FakeAsyncFetch.log if h.startswith("vrs-standing")]), 4)
+
+    def test_failures_reach_the_job(self):
+        f = self.start({"abc.supabase.co": OSError("reset"), "ipwho.is": self.GEO})
+        self.pump(2000)
+        self.assertEqual(f.status, "WAIT")                   # the first miss retries the same source
+        self.assertIn("no answer", f.note)
+        relay = [c for c in FakeAsyncFetch.made if c.host == "abc.supabase.co"][0]
+        self.assertGreaterEqual(relay.resets, 1)             # a broken connection is not reused
+        self.model.set_home(*SFO, "SFO")
+        self.model.ingest([row("b", cs="UAL1")], self.t)
+        FakeAsyncFetch.answers = {"vrs-standing": skyfeed.HttpError(404), "abc.supabase.co": self.ROWS}
+        f._next_poll = self.t + 10 ** 6
+        f._step("route", f._route(self.t), self.t)
+        self.pump(self.t + 1000)
+        self.assertIs(self.model.routes["UAL1"], False)      # an HTTP 404 is "no route on file"
 
 class FeedStartup(FeedHarness):
     def test_browser_without_a_proxy_flies_the_demo_and_still_finds_home(self):
@@ -1132,7 +1325,7 @@ class FeedStartup(FeedHarness):
     def test_a_saved_home_code_this_build_no_longer_lists_falls_back_to_auto(self):
         f = self.build(home=None, settings={"home": "ZZZ"})
         self.serve({"ipwho": self.GEO})
-        f._locate(0)
+        f.run(f._locate, 0)
         self.assertEqual(self.model.home_label, "TESTVILLE")
 
     def test_proxy_url_may_carry_a_query_a_trailing_slash_or_a_percent(self):
@@ -1222,11 +1415,11 @@ class FeedStartup(FeedHarness):
     def test_a_new_home_clears_the_old_timezone(self):
         f = self.build(home=None)
         self.serve({"ipwho": self.GEO})
-        f._locate(0)
+        f.run(f._locate, 0)
         self.assertEqual(f.tz_s, -14400)
         self.settings["home"] = "JFK"
         f.relocate()
-        f._locate(0)
+        f.run(f._locate, 0)
         self.assertEqual((self.model.home_label, f.tz_s), ("JFK", None))
 
 
@@ -1253,7 +1446,7 @@ class FeedExact(FeedHarness):
     def test_the_lookup_under_an_exact_position_sets_the_city_and_time_zone_only(self):
         f = self.exact()
         self.serve({"ipwho": self.GEO, "supabase": payload(row("real1", lat=33.46, lon=-112.07))})
-        f._locate(0)
+        f.run(f._locate, 0)
         self.assertEqual((self.model.home, self.model.home_label, f.tz_s), ((33.4512, -112.0638), "TESTVILLE", -14400))
         self.assertEqual(self.hosts().count("ipwho.is"), 1)
         self.pump(skyfeed.GEO_RETRY_MS * 2)
@@ -1304,7 +1497,7 @@ class FeedExact(FeedHarness):
     def test_an_airport_pick_keeps_the_saved_position_but_does_not_use_it(self):
         f = self.build(home=None, settings={"home": "JFK", "pos": self.POS})
         self.serve({"ipwho": self.GEO})
-        f._locate(0)
+        f.run(f._locate, 0)
         self.assertEqual((self.model.home_label, f.exact, f.tz_s), ("JFK", False, None))
         self.assertEqual(self.settings["pos"], self.POS)
         self.assertEqual(self.hosts(), [])
@@ -1314,7 +1507,7 @@ class FeedExact(FeedHarness):
             with self.subTest(pos=bad):
                 f = self.build(home=None, settings={"home": "EXACT", "pos": bad})
                 self.serve({"ipwho": self.GEO})
-                f._locate(0)
+                f.run(f._locate, 0)
                 self.assertEqual((self.model.home, self.model.home_label, f.exact, f.tz_s), ((40.64, -73.78), "TESTVILLE", False, -14400))
 
     def test_settings_saved_before_the_position_existed_still_start(self):
@@ -1323,7 +1516,7 @@ class FeedExact(FeedHarness):
             with self.subTest(home=home):
                 f = self.build(home=None, settings=dict(old, home=home))
                 self.serve({"ipwho": self.GEO})
-                f._locate(0)
+                f.run(f._locate, 0)
                 self.assertEqual((self.model.home_label, f.exact), ("JFK" if home == "JFK" else "TESTVILLE", False))
         tree = ast.parse((ROOT / "select_sky" / "__init__.py").read_text())
         defaults = next(n.value for n in tree.body if isinstance(n, ast.Assign) and getattr(n.targets[0], "id", "") == "SETTINGS")
@@ -1627,19 +1820,19 @@ class FeedStateMachine(FeedHarness):
             raise OSError("timed out")
 
         self.serve({"vrs-standing": fail})
-        f._locate(0)
+        f.run(f._locate, 0)
         f._next_poll = 10 ** 9                               # leave the polling out of it
-        f._route(0)
+        f.run(f._route, 0)
         self.assertIsNotNone(f._route_target())              # a timeout is not "no route on file"
         self.assertIsNone(f._due(1000))                      # but it waits ROUTE_RETRY_MS before asking again
         self.assertEqual(f._due(skyfeed.ROUTE_RETRY_MS), f._route)
         for t in (skyfeed.ROUTE_RETRY_MS, 2 * skyfeed.ROUTE_RETRY_MS):
-            f._route(t)
+            f.run(f._route, t)
         self.assertEqual(len(calls), 3)
         self.assertIsNone(f._route_target())                 # three misses in a row end the asking
         self.model.routes.clear()
         self.serve({"vrs-standing": lambda u: (_ for _ in ()).throw(skyfeed.HttpError(404))})
-        f._route(0)                                          # a real 404 means "no such route" at once
+        f.run(f._route, 0)                                          # a real 404 means "no such route" at once
         self.assertEqual(self.model.routes, {"UAL1": False})
 
     def test_route_waits_for_the_selection_to_rest(self):
@@ -1647,7 +1840,7 @@ class FeedStateMachine(FeedHarness):
         f = self.build()
         self.model.set_home(*SFO, "SFO")
         self.model.ingest([row("a", cs="UAL1"), row("b", cs="UAL2", lat=37.8)], 0)
-        f._locate(0)
+        f.run(f._locate, 0)
         f._next_poll = 10 ** 9                               # leave the polling out of it
         self.model.sel = "a"
         self.assertIsNone(f._due(1000))
@@ -1666,7 +1859,7 @@ class FeedStateMachine(FeedHarness):
             self.model.routes["X%d" % i] = False
         ports = {"_airports": [{"iata": "SFO", "lat": 37.6, "lon": -122.4}, {"iata": "JFK", "lat": 40.6, "lon": -73.8}]}
         self.serve({"vrs-standing": ports})
-        f._route(0)
+        f.run(f._route, 0)
         self.assertEqual(self.model.routes["UAL1"]["d"][0], "JFK")
         self.assertIsNone(f._route_target())
 

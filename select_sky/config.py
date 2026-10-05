@@ -42,3 +42,7 @@ START_VIEW = "WALL"
 
 # Set False to skip the startup animation.
 SPLASH = True
+
+# On a badge, fetch aircraft in the background so the screen and buttons never
+# pause for the network. Set False to use plain blocking requests instead.
+NONBLOCKING = True

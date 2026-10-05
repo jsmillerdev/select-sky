@@ -182,6 +182,8 @@ class App:
         pressed = badge.pressed()
         if pressed or self.start_ms == now:
             self.input_ms = now
+        if pressed or badge.held():
+            self.feed.touch(now)                # requests wait while the buttons are in use
         nap = self.settings["sleep"] * 60000
         if self.asleep or (nap and now - self.input_ms >= nap):
             if self.asleep and pressed:         # the press that wakes it is not also a view key
@@ -196,7 +198,7 @@ class App:
             skyoverlay.paused(self)             # no feed.tick: a paused badge sends no requests
             return
         self.hw.update(self)
-        self._blocked = self.feed.busy      # an armed job runs in this tick
+        self._blocked = self.feed.blocks    # an armed blocking job runs in this tick
         self.feed.tick(now)
         if self.home_pick is not None and now - self._home_ms >= HOME_SETTLE_MS:
             code, self.home_pick = self.home_pick, None
